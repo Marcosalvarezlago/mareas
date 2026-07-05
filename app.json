@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mareas",
+    "name": "Mareas",
     "slug": "mareas",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -28,7 +28,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#2E6E8E",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
