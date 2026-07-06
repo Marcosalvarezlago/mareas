@@ -116,6 +116,38 @@ export function cycleDayOf(date: ISODate, starts: ISODate[]): number | null {
   return d <= MAX_CYCLE ? d : null;
 }
 
+export interface Memory {
+  date: ISODate;
+  cycleDay: number;
+  entry: DayEntry;
+}
+
+/**
+ * El "diario cíclico": entradas de ciclos anteriores que cayeron en el mismo
+ * punto del ciclo que `targetDate` (±`window` días). Permite ver de un vistazo
+ * cómo se vivió esa misma fase en vueltas anteriores.
+ */
+export function cyclicMemories(
+  targetDate: ISODate,
+  entries: Record<ISODate, DayEntry>,
+  starts: ISODate[],
+  window = 1,
+): Memory[] {
+  const cd = cycleDayOf(targetDate, starts);
+  if (cd == null) return [];
+  const out: Memory[] = [];
+  for (const d of Object.keys(entries).sort()) {
+    if (d >= targetDate) continue; // solo pasado
+    const dcd = cycleDayOf(d, starts);
+    if (dcd == null || Math.abs(dcd - cd) > window) continue;
+    const e = entries[d];
+    if (!e) continue;
+    const hasContent = (e.flow ?? 0) > 0 || e.moodHer || e.moodHim || e.noteHer || e.noteHim;
+    if (hasContent) out.push({ date: d, cycleDay: dcd, entry: e });
+  }
+  return out.reverse(); // más reciente primero
+}
+
 export type Phase = 'menstrual' | 'folicular' | 'fertil' | 'lutea';
 
 export const PHASE_INFO: Record<Phase, { name: string; hint: string }> = {

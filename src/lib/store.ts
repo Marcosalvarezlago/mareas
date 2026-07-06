@@ -39,6 +39,17 @@ export const useApp = create<AppState>()(
     {
       name: 'mareas-v1',
       storage: createJSONStorage(() => AsyncStorage),
+      // Rellena claves nuevas de settings (p. ej. `perspective`) al rehidratar
+      // datos guardados con una versión anterior del esquema.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<AppState>;
+        return {
+          ...current,
+          ...p,
+          settings: { ...current.settings, ...(p.settings ?? {}) },
+          entries: p.entries ?? current.entries,
+        };
+      },
     },
   ),
 );
