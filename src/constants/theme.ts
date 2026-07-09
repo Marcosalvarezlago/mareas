@@ -19,6 +19,10 @@ export const Colors = {
     periodSoft: '#FDE7EC',
     fertile: '#1F9E95',
     fertileSoft: '#DCF3F1',
+    follicular: '#4C9F70',
+    follicularSoft: '#E3F2E8',
+    lutea: '#8A6FB8',
+    luteaSoft: '#EFE9F7',
   },
   dark: {
     text: '#ffffff',
@@ -31,6 +35,10 @@ export const Colors = {
     periodSoft: '#43222B',
     fertile: '#4CC8BF',
     fertileSoft: '#14322F',
+    follicular: '#6FC492',
+    follicularSoft: '#1C2F24',
+    lutea: '#AF97DB',
+    luteaSoft: '#2A2338',
   },
 } as const;
 

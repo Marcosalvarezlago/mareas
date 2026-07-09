@@ -55,7 +55,7 @@ export const WEEKDAYS = [
   'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo',
 ] as const;
 
-export const WEEKDAYS_MIN = ['L', 'M', 'X', 'J', 'V', 'S', 'D'] as const;
+export const WEEKDAYS_MIN = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'] as const;
 
 /** Índice de día de semana con lunes = 0 (convención española). */
 export function weekdayMon0(d: ISODate): number {

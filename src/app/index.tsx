@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CycleCalendar } from '@/components/cycle-calendar';
 import { DayPanel } from '@/components/day-panel';
+import { PrivacyCard } from '@/components/privacy-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -51,6 +52,9 @@ export default function HomeScreen() {
 
           {/* Info del día seleccionado */}
           <DayPanel date={selected} />
+
+          {/* Configuración general de privacidad */}
+          <PrivacyCard />
 
           <ThemedText type="small" style={[styles.disclaimer, { color: palette.textSecondary }]}>
             Las predicciones son estimaciones estadísticas. Mareas no sirve como método

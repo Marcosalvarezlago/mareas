@@ -5,15 +5,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useCycle } from '@/hooks/use-cycle';
 import { usePalette } from '@/hooks/use-palette';
-import {
-  addDays,
-  isBetween,
-  monthGrid,
-  monthLabel,
-  todayISO,
-  WEEKDAYS_MIN,
-  type ISODate,
-} from '@/lib/dates';
+import { dayPhase, PHASE_COLOR } from '@/lib/cycle';
+import { monthGrid, monthLabel, todayISO, WEEKDAYS_MIN, type ISODate } from '@/lib/dates';
 import { useApp } from '@/lib/store';
 
 interface Props {
@@ -21,11 +14,17 @@ interface Props {
   onSelect: (date: ISODate) => void;
 }
 
-/** Calendario real (Gregoriano) con navegación de mes/año y capas del ciclo. */
+/**
+ * Calendario real (mes/año navegables) con las fases del ciclo pintadas en
+ * TODOS los días — pasados, presentes y futuros (proyección multi-ciclo).
+ * Pulsación larga sobre un día (solo ella, y nunca en el futuro): marca/quita regla.
+ */
 export function CycleCalendar({ selectedDate, onSelect }: Props) {
   const palette = usePalette();
   const entries = useApp((s) => s.entries);
-  const { prediction } = useCycle();
+  const updateDay = useApp((s) => s.updateDay);
+  const me = useApp((s) => s.settings.perspective);
+  const { windows, periodLen } = useCycle();
   const today = todayISO();
 
   const [view, setView] = useState(() => ({
@@ -45,8 +44,10 @@ export function CycleCalendar({ selectedDate, onSelect }: Props) {
       return { y: Math.floor(t / 12), m: ((t % 12) + 12) % 12 };
     });
 
+  const toggleFlow = (date: ISODate) =>
+    updateDay(date, { flow: (entries[date]?.flow ?? 0) > 0 ? 0 : 2 });
+
   const cells = monthGrid(view.y, view.m);
-  const predictedTo = prediction ? addDays(prediction.nextStart, prediction.periodLen - 1) : null;
 
   return (
     <View>
@@ -61,8 +62,8 @@ export function CycleCalendar({ selectedDate, onSelect }: Props) {
       </View>
 
       <View style={styles.week}>
-        {WEEKDAYS_MIN.map((w, i) => (
-          <View key={i} style={styles.cell}>
+        {WEEKDAYS_MIN.map((w) => (
+          <View key={w} style={styles.cell}>
             <ThemedText type="small" style={{ color: palette.textSecondary }}>
               {w}
             </ThemedText>
@@ -75,34 +76,49 @@ export function CycleCalendar({ selectedDate, onSelect }: Props) {
           if (!date) return <View key={i} style={styles.cell} />;
 
           const entry = entries[date];
-          const flow = entry?.flow ?? 0;
+          const realFlow = (entry?.flow ?? 0) > 0;
           const mood = entry?.moodHer ?? entry?.moodHim;
           const isToday = date === today;
           const isSelected = date === selectedDate;
-          const isFertile =
-            prediction && isBetween(date, prediction.fertileFrom, prediction.fertileTo);
-          const isPredicted =
-            prediction && predictedTo && isBetween(date, prediction.nextStart, predictedTo);
+          const dp = dayPhase(date, entries, windows, periodLen);
 
           const dayStyle: object[] = [styles.day];
           let numColor: string = palette.text;
 
-          if (isSelected) dayStyle.push({ backgroundColor: palette.backgroundSelected });
-          if (isFertile) dayStyle.push({ backgroundColor: palette.fertileSoft });
-          if (isPredicted) {
-            dayStyle.push({ borderWidth: 1.5, borderStyle: 'dashed', borderColor: palette.period });
-            numColor = palette.period;
+          if (dp) {
+            // Fondo suave según fase (también en meses futuros).
+            dayStyle.push({ backgroundColor: palette[PHASE_COLOR[dp.phase].soft] });
+            if (dp.phase === 'menstrual' && dp.projected) {
+              // Regla prevista: borde discontinuo coral.
+              dayStyle.push({
+                borderWidth: 1.5,
+                borderStyle: 'dashed',
+                borderColor: palette.period,
+              });
+              numColor = palette.period;
+            }
           }
-          if (flow > 0) {
-            dayStyle.push({ backgroundColor: palette.period, opacity: 0.55 + flow * 0.15 });
+          if (realFlow) {
+            // Regla registrada: coral sólido, intensidad → opacidad.
+            dayStyle.push({
+              backgroundColor: palette.period,
+              opacity: 0.55 + (entry?.flow ?? 2) * 0.15,
+            });
             numColor = '#ffffff';
           }
           if (isToday || isSelected) {
-            dayStyle.push({ borderWidth: 2, borderColor: palette.tint });
+            dayStyle.push({ borderWidth: 2, borderStyle: 'solid', borderColor: palette.tint });
           }
 
+          const canQuickMark = me === 'her' && date <= today;
+
           return (
-            <Pressable key={i} style={styles.cell} onPress={() => onSelect(date)}>
+            <Pressable
+              key={i}
+              style={styles.cell}
+              onPress={() => onSelect(date)}
+              onLongPress={canQuickMark ? () => toggleFlow(date) : undefined}
+              delayLongPress={350}>
               <View style={dayStyle}>
                 <Text style={[styles.num, { color: numColor }]}>{Number(date.slice(8))}</Text>
                 <Text style={styles.mood}>{mood ?? ' '}</Text>
@@ -115,9 +131,19 @@ export function CycleCalendar({ selectedDate, onSelect }: Props) {
       <View style={styles.legend}>
         {[
           { sw: { backgroundColor: palette.period }, label: 'Regla' },
-          { sw: { borderWidth: 1.5, borderStyle: 'dashed' as const, borderColor: palette.period }, label: 'Prevista' },
+          {
+            sw: {
+              borderWidth: 1.5,
+              borderStyle: 'dashed' as const,
+              borderColor: palette.period,
+              backgroundColor: palette.periodSoft,
+            },
+            label: 'Prevista',
+          },
           { sw: { backgroundColor: palette.fertileSoft }, label: 'Fértil' },
-          { sw: { borderWidth: 2, borderColor: palette.tint }, label: 'Hoy/sel.' },
+          { sw: { backgroundColor: palette.follicularSoft }, label: 'Folicular' },
+          { sw: { backgroundColor: palette.luteaSoft }, label: 'Lútea' },
+          { sw: { borderWidth: 2, borderColor: palette.tint }, label: 'Hoy' },
         ].map(({ sw, label }) => (
           <View key={label} style={styles.legendItem}>
             <View style={[styles.swatch, sw]} />
@@ -127,6 +153,12 @@ export function CycleCalendar({ selectedDate, onSelect }: Props) {
           </View>
         ))}
       </View>
+
+      {me === 'her' && (
+        <ThemedText type="small" style={[styles.hint, { color: palette.textSecondary }]}>
+          💡 Mantén pulsado un día (de hoy hacia atrás) para marcar o quitar la regla.
+        </ThemedText>
+      )}
     </View>
   );
 }
@@ -162,9 +194,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: Spacing.three,
+    gap: Spacing.two,
+    rowGap: Spacing.one,
     marginTop: Spacing.three,
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   swatch: { width: 14, height: 14, borderRadius: 5 },
+  hint: { textAlign: 'center', marginTop: Spacing.two },
 });
