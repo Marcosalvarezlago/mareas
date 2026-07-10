@@ -7,11 +7,11 @@ import { Spacing } from '@/constants/theme';
 import { useCycle } from '@/hooks/use-cycle';
 import { usePalette } from '@/hooks/use-palette';
 import {
-  cyclicMemories,
   dayPhase,
   PHASE_COLOR,
   PHASE_INFO,
-  summarizeCycleDay,
+  similarDays,
+  summarizeCyclePoint,
 } from '@/lib/cycle';
 import { diffDays, formatLong, formatShort, todayISO, type ISODate } from '@/lib/dates';
 import { useApp } from '@/lib/store';
@@ -26,9 +26,9 @@ import {
 } from '@/lib/types';
 
 /**
- * Info del día seleccionado: general (fase) → diario → resumen del día de
- * ciclo → memoria cíclica. El futuro es de solo lectura: el diario se
- * escribe cuando se vive.
+ * Info del día seleccionado: general (fase) → diario → resumen del punto del
+ * ciclo → días parecidos. El futuro es de solo lectura: el diario se escribe
+ * cuando se vive.
  */
 export function DayPanel({ date }: { date: ISODate }) {
   const palette = usePalette();
@@ -50,6 +50,7 @@ export function DayPanel({ date }: { date: ISODate }) {
   const cd = dp?.cycleDay ?? null;
   const meMeta = PERSON_META[me];
   const otherMeta = PERSON_META[OTHER[me]];
+  const luna = PERSON_META.her; // rol que vive el ciclo
 
   // --- compartición efectiva: candado del día > preferencia por defecto ---
   const myDefaultNotes = privacy[me].notesShared;
@@ -59,10 +60,14 @@ export function DayPanel({ date }: { date: ISODate }) {
 
   const myMood = entry?.[meMeta.moodKey];
   const myNote = entry?.[meMeta.noteKey] ?? '';
+  const myGood = entry?.[meMeta.goodKey] ?? '';
+  const myBad = entry?.[meMeta.badKey] ?? '';
   const otherMood = entry?.[otherMeta.moodKey];
   const otherNote = entry?.[otherMeta.noteKey];
+  const otherGood = entry?.[otherMeta.goodKey];
+  const otherBad = entry?.[otherMeta.badKey];
 
-  // --- resumen del día N del ciclo ---
+  // --- resumen del punto del ciclo ---
   const cycleNote: CycleDayNote = (cd != null ? cycleNotes[cd] : undefined) ?? {};
   const mySummary = cycleNote[meMeta.summaryKey] ?? '';
   const mySummaryShared =
@@ -71,14 +76,17 @@ export function DayPanel({ date }: { date: ISODate }) {
   const otherSummaryShared =
     cycleNote[otherMeta.summarySharedKey] ?? privacy[OTHER[me]].summariesShared;
 
-  const memories = cd != null ? cyclicMemories(cd, date, entries, starts).slice(0, 6) : [];
+  // Días parecidos: misma fase, posición comparable (ver lib/cycle.ts).
+  const memories = similarDays(date, entries, windows, periodLen).slice(0, 6);
 
   // --- helpers de escritura ---
   const patchEntry = (p: Partial<DayEntry>) => updateDay(date, p);
   const setFlow = (f: Flow) => patchEntry({ flow: (entry?.flow ?? 0) === f ? 0 : f });
   const generateSummary = () => {
     if (cd == null) return;
-    const text = summarizeCycleDay(cd, entries, starts, me, otherDefaultNotes);
+    const text = summarizeCyclePoint(
+      date, entries, starts, windows, periodLen, me, otherDefaultNotes,
+    );
     if (text) updateCycleNote(cd, { [meMeta.summaryKey]: text });
   };
 
@@ -164,7 +172,7 @@ export function DayPanel({ date }: { date: ISODate }) {
           <ThemedText type="small" style={{ color: palette.textSecondary }}>
             {me === 'her'
               ? 'Sin datos de ciclo para este día. Marca tu regla abajo o mantén pulsado un día del calendario 👆'
-              : 'Ella aún no ha registrado ciclo alrededor de este día.'}
+              : `${luna.label} aún no ha registrado ciclo alrededor de este día.`}
           </ThemedText>
         )}
       </ThemedView>
@@ -180,9 +188,9 @@ export function DayPanel({ date }: { date: ISODate }) {
           </ThemedText>
         ) : (
           <>
-            {/* Regla (la registra ella) */}
+            {/* Regla (la registra Luna) */}
             <ThemedText type="small" style={[styles.sub, { color: palette.textSecondary }]}>
-              🩸 Regla{me === 'him' ? ' · la registra ella' : ''}
+              🩸 Regla{me === 'him' ? ` · la registra ${luna.label}` : ''}
             </ThemedText>
             {me === 'her' ? (
               <View style={styles.chipRow}>
@@ -228,6 +236,28 @@ export function DayPanel({ date }: { date: ISODate }) {
               })}
             </View>
 
+            {/* Bienestar: se comparte, es el idioma de cuidado */}
+            <View style={styles.wellRow}>
+              <ThemedText type="small" style={styles.wellIcon}>✅</ThemedText>
+              <TextInput
+                value={myGood}
+                onChangeText={(t) => patchEntry({ [meMeta.goodKey]: t })}
+                placeholder="Me sentó bien… (paseo, manta, infusión)"
+                placeholderTextColor={palette.textSecondary}
+                style={[styles.wellInput, { backgroundColor: palette.background, color: palette.text }]}
+              />
+            </View>
+            <View style={styles.wellRow}>
+              <ThemedText type="small" style={styles.wellIcon}>⚠️</ThemedText>
+              <TextInput
+                value={myBad}
+                onChangeText={(t) => patchEntry({ [meMeta.badKey]: t })}
+                placeholder="Me sentó mal… (café, trasnochar)"
+                placeholderTextColor={palette.textSecondary}
+                style={[styles.wellInput, { backgroundColor: palette.background, color: palette.text }]}
+              />
+            </View>
+
             {/* Mi nota + compartir */}
             <TextInput
               multiline
@@ -247,6 +277,13 @@ export function DayPanel({ date }: { date: ISODate }) {
               {otherMeta.emoji} {otherMeta.label}
             </ThemedText>
             <ThemedText>{otherMood ? `Se siente ${otherMood}` : 'Sin estado registrado'}</ThemedText>
+            {(otherGood || otherBad) && (
+              <ThemedText type="small">
+                {otherGood ? `✅ ${otherGood}` : ''}
+                {otherGood && otherBad ? '   ' : ''}
+                {otherBad ? `⚠️ ${otherBad}` : ''}
+              </ThemedText>
+            )}
             {otherNoteShared && otherNote ? (
               <ThemedText style={{ marginTop: Spacing.one }}>“{otherNote}”</ThemedText>
             ) : (
@@ -258,12 +295,15 @@ export function DayPanel({ date }: { date: ISODate }) {
         )}
       </ThemedView>
 
-      {/* ---------- RESUMEN DEL DÍA N DEL CICLO ---------- */}
-      {cd != null && (
+      {/* ---------- RESUMEN DEL PUNTO DEL CICLO ---------- */}
+      {cd != null && dp && (
         <ThemedView type="backgroundElement" style={styles.card}>
-          <ThemedText style={styles.h}>🧭 El día {cd} de su ciclo</ThemedText>
+          <ThemedText style={styles.h}>
+            🧭 Día {cd} · {PHASE_INFO[dp.phase].name}
+          </ThemedText>
           <ThemedText type="small" style={{ color: palette.textSecondary }}>
-            Qué suele significar este punto del ciclo (se guarda para todos los ciclos).
+            Qué suele significar este punto del ciclo. El resumen automático usa los
+            días parecidos de la misma fase (no el calendario a secas).
           </ThemedText>
           <TextInput
             multiline
@@ -299,17 +339,20 @@ export function DayPanel({ date }: { date: ISODate }) {
         </ThemedView>
       )}
 
-      {/* ---------- MEMORIA CÍCLICA ---------- */}
-      {memories.length > 0 && (
+      {/* ---------- DÍAS PARECIDOS ---------- */}
+      {memories.length > 0 && dp && (
         <ThemedView type="backgroundElement" style={styles.card}>
           <ThemedText style={styles.h}>🔁 En este punto del ciclo</ThemedText>
           <ThemedText type="small" style={{ color: palette.textSecondary }}>
-            Días parecidos (≈ día {cd}) de ciclos anteriores:
+            Días parecidos de ciclos anteriores ({PHASE_INFO[dp.phase].name.toLowerCase()},
+            posición equivalente):
           </ThemedText>
           {memories.map((mem) => {
             const oShared = mem.entry[otherMeta.sharedKey] ?? otherDefaultNotes;
             const oNote = mem.entry[otherMeta.noteKey];
             const mNote = mem.entry[meMeta.noteKey];
+            const goods = [mem.entry.goodHer, mem.entry.goodHim].filter(Boolean).join(', ');
+            const bads = [mem.entry.badHer, mem.entry.badHim].filter(Boolean).join(', ');
             return (
               <View key={mem.date} style={[styles.memItem, { borderLeftColor: palette.tint }]}>
                 <ThemedText type="small" style={{ fontWeight: '700' }}>
@@ -318,6 +361,13 @@ export function DayPanel({ date }: { date: ISODate }) {
                   {mem.entry.moodHim ?? ''}
                   {(mem.entry.flow ?? 0) > 0 ? ' 🩸' : ''}
                 </ThemedText>
+                {(goods || bads) && (
+                  <ThemedText type="small">
+                    {goods ? `✅ ${goods}` : ''}
+                    {goods && bads ? '   ' : ''}
+                    {bads ? `⚠️ ${bads}` : ''}
+                  </ThemedText>
+                )}
                 {mNote ? (
                   <ThemedText type="small">
                     {meMeta.emoji} “{mNote}”
@@ -369,6 +419,20 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  wellRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginTop: Spacing.one,
+  },
+  wellIcon: { width: 22, textAlign: 'center' },
+  wellInput: {
+    flex: 1,
+    borderRadius: 10,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    fontSize: 14,
   },
   note: {
     borderRadius: 12,

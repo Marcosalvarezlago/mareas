@@ -8,14 +8,18 @@ export const FLOW_LABELS = ['Nada', 'Ligero', 'Medio', 'Fuerte'] as const;
 /** Emojis de estado emocional disponibles en el diario. */
 export const MOODS = ['🥰', '😊', '😐', '😴', '🤕', '😢', '😡', '🤯'] as const;
 
-/** Los dos miembros de la pareja (provisional hasta que haya login real). */
+/**
+ * Los dos roles de la pareja. OJO: 'her'/'him' son CLAVES DE ALMACENAMIENTO
+ * (no renombrar: hay datos persistidos); los nombres visibles viven en
+ * PERSON_META — Luna 🌙 (quien vive el ciclo) y Mar 🌊 (quien acompaña).
+ */
 export type Person = 'her' | 'him';
 
 /**
- * Entrada del diario de un día. El ciclo (flow) y el estado emocional son
- * información compartida de la pareja; las NOTAS son privadas y cada quien
- * decide compartir la suya (por día con `note*Shared`, o por defecto en
- * Ajustes de privacidad).
+ * Entrada del diario de un día. Compartido por diseño: ciclo (flow), estado
+ * emocional y bienestar (qué sentó bien/mal — lenguaje de cuidado de la
+ * pareja). Privado por defecto: las notas, con candado por día o preferencia
+ * general.
  */
 export interface DayEntry {
   date: ISODate;
@@ -27,6 +31,11 @@ export interface DayEntry {
   /** undefined = usa el valor por defecto de privacidad de esa persona. */
   noteHerShared?: boolean;
   noteHimShared?: boolean;
+  /** Bienestar: etiquetas separadas por comas ("paseo, manta, infusión"). */
+  goodHer?: string;
+  badHer?: string;
+  goodHim?: string;
+  badHim?: string;
 }
 
 /**
@@ -49,27 +58,33 @@ export interface PersonMeta {
   sharedKey: 'noteHerShared' | 'noteHimShared';
   summaryKey: 'summaryHer' | 'summaryHim';
   summarySharedKey: 'summaryHerShared' | 'summaryHimShared';
+  goodKey: 'goodHer' | 'goodHim';
+  badKey: 'badHer' | 'badHim';
 }
 
-/** Mapea cada persona a sus campos, para escribir código simétrico. */
+/** Mapea cada rol a sus campos, para escribir código simétrico. */
 export const PERSON_META: Record<Person, PersonMeta> = {
   her: {
-    label: 'Ella',
-    emoji: '🌸',
+    label: 'Luna',
+    emoji: '🌙',
     moodKey: 'moodHer',
     noteKey: 'noteHer',
     sharedKey: 'noteHerShared',
     summaryKey: 'summaryHer',
     summarySharedKey: 'summaryHerShared',
+    goodKey: 'goodHer',
+    badKey: 'badHer',
   },
   him: {
-    label: 'Él',
+    label: 'Mar',
     emoji: '🌊',
     moodKey: 'moodHim',
     noteKey: 'noteHim',
     sharedKey: 'noteHimShared',
     summaryKey: 'summaryHim',
     summarySharedKey: 'summaryHimShared',
+    goodKey: 'goodHim',
+    badKey: 'badHim',
   },
 };
 

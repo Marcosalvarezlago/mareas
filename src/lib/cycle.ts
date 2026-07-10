@@ -281,94 +281,196 @@ export const PHASE_COLOR: Record<Phase, { main: ThemeColor; soft: ThemeColor }> 
 };
 
 /* ------------------------------------------------------------------ */
-/*  Diario cíclico: memoria y resumen del día N                        */
+/*  Diario cíclico: días parecidos (por fase) y resumen del punto      */
 /* ------------------------------------------------------------------ */
 
-export interface Memory {
+/**
+ * Coordenadas de un día dentro de su ciclo. La clave del emparejamiento:
+ * el comienzo del ciclo se alinea contando HACIA ADELANTE desde la regla
+ * (cdF), pero la fase lútea está anclada al FINAL (la ovulación ocurre
+ * ~14 días antes de la siguiente regla), así que ahí se alinea contando
+ * HACIA ATRÁS (cdB) — así dos ciclos de distinta duración se corresponden.
+ */
+interface DayCoord {
+  phase: Phase;
+  /** Día de ciclo contando desde la regla (1 = primer día). */
+  cdF: number;
+  /** Días hasta la siguiente regla (real si se conoce, proyectada si no). */
+  cdB: number | null;
+  /** Distancia a la ovulación estimada de SU ciclo (0 = día de ovulación). */
+  dOvu: number | null;
+}
+
+function coordOf(
+  date: ISODate,
+  entries: Record<ISODate, DayEntry>,
+  windows: CycleWindow[],
+  periodLen: number,
+): DayCoord | null {
+  const dp = dayPhase(date, entries, windows, periodLen);
+  if (!dp) return null;
+  const w = windows.find((win) => win.start <= date && date < win.nextStart);
+  return {
+    phase: dp.phase,
+    cdF: dp.cycleDay,
+    cdB: w ? diffDays(date, w.nextStart) : null,
+    dOvu: w ? diffDays(w.ovulation, date) : null,
+  };
+}
+
+/** Tolerancia de emparejamiento por fase (la regla es lo más "fijo"). */
+const MATCH_WINDOW: Record<Phase, number> = {
+  menstrual: 1,
+  folicular: 2,
+  fertil: 2,
+  lutea: 2,
+};
+
+/**
+ * Distancia entre dos días EN EL LENGUAJE DE SU FASE, o null si no son
+ * comparables. Fases distintas nunca se mezclan: un día de regla no toma
+ * información de la víspera aunque sean consecutivos en el calendario.
+ */
+function phaseDelta(a: DayCoord, b: DayCoord): number | null {
+  if (a.phase !== b.phase) return null;
+  switch (a.phase) {
+    case 'menstrual':
+    case 'folicular':
+      return Math.abs(a.cdF - b.cdF);
+    case 'fertil':
+      return a.dOvu != null && b.dOvu != null
+        ? Math.abs(a.dOvu - b.dOvu)
+        : Math.abs(a.cdF - b.cdF);
+    case 'lutea':
+      return a.cdB != null && b.cdB != null
+        ? Math.abs(a.cdB - b.cdB)
+        : Math.abs(a.cdF - b.cdF);
+  }
+}
+
+export interface SimilarDay {
   date: ISODate;
   cycleDay: number;
+  /** Distancia al objetivo en la métrica de su fase (0 = equivalente exacto). */
+  delta: number;
   entry: DayEntry;
 }
 
-/**
- * Entradas pasadas que cayeron en el mismo punto del ciclo (±window días)
- * que el día objetivo. Funciona también para fechas futuras: se compara
- * contra su día de ciclo PROYECTADO.
- */
-export function cyclicMemories(
-  targetCycleDay: number | null,
-  beforeDate: ISODate,
-  entries: Record<ISODate, DayEntry>,
-  starts: ISODate[],
-  window = 1,
-): Memory[] {
-  if (targetCycleDay == null) return [];
-  const out: Memory[] = [];
-  for (const d of Object.keys(entries).sort()) {
-    if (d >= beforeDate) continue; // solo pasado
-    const dcd = cycleDayOf(d, starts);
-    if (dcd == null || Math.abs(dcd - targetCycleDay) > window) continue;
-    const e = entries[d];
-    if (!e) continue;
-    const hasContent =
-      (e.flow ?? 0) > 0 || e.moodHer || e.moodHim || e.noteHer || e.noteHim;
-    if (hasContent) out.push({ date: d, cycleDay: dcd, entry: e });
-  }
-  return out.reverse(); // más reciente primero
+function hasContent(e: DayEntry): boolean {
+  return Boolean(
+    (e.flow ?? 0) > 0 ||
+      e.moodHer || e.moodHim ||
+      e.noteHer || e.noteHim ||
+      e.goodHer || e.badHer || e.goodHim || e.badHim,
+  );
 }
 
 /**
- * Resumen AUTOMÁTICO y local del día N del ciclo: estadística sencilla sobre
- * los registros históricos en ese punto (±window). Solo usa mis notas y las
- * notas del otro que estén compartidas — la privacidad se respeta también aquí.
+ * Días pasados equivalentes al objetivo en el lenguaje del ciclo: misma fase
+ * y posición comparable (hacia adelante desde la regla, hacia atrás hasta la
+ * siguiente, o distancia a la ovulación, según la fase). Este es el único
+ * punto de acople del "emparejador": un modelo aprendido podrá sustituir a
+ * esta regla en el futuro sin tocar nada más.
  */
-export function summarizeCycleDay(
-  cd: number,
+export function similarDays(
+  targetDate: ISODate,
+  entries: Record<ISODate, DayEntry>,
+  windows: CycleWindow[],
+  periodLen: number,
+  max = 12,
+): SimilarDay[] {
+  const target = coordOf(targetDate, entries, windows, periodLen);
+  if (!target) return [];
+  const out: SimilarDay[] = [];
+  for (const d of Object.keys(entries).sort()) {
+    if (d >= targetDate) continue; // solo pasado
+    const e = entries[d];
+    if (!e || !hasContent(e)) continue;
+    const c = coordOf(d, entries, windows, periodLen);
+    if (!c) continue;
+    const delta = phaseDelta(target, c);
+    if (delta == null || delta > MATCH_WINDOW[target.phase]) continue;
+    out.push({ date: d, cycleDay: c.cdF, delta, entry: e });
+  }
+  return out.reverse().slice(0, max); // más reciente primero
+}
+
+/* --- etiquetas de bienestar ("me sentó bien/mal", separadas por comas) --- */
+
+function splitTags(s?: string): string[] {
+  return (s ?? '')
+    .split(/[,;·]+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+/** "manta ×3, paseo ×2, infusión" — frecuencia de etiquetas, top 4. */
+function tallyTags(values: (string | undefined)[]): string {
+  const counts = new Map<string, { disp: string; n: number }>();
+  for (const v of values) {
+    for (const tag of splitTags(v)) {
+      const key = tag.toLowerCase();
+      const cur = counts.get(key);
+      if (cur) cur.n++;
+      else counts.set(key, { disp: tag, n: 1 });
+    }
+  }
+  return [...counts.values()]
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 4)
+    .map(({ disp, n }) => (n > 1 ? `${disp} ×${n}` : disp))
+    .join(', ');
+}
+
+/**
+ * Resumen AUTOMÁTICO y local del punto del ciclo: estadística sencilla sobre
+ * los días parecidos (misma fase, posición comparable), incluido el bienestar
+ * (qué sienta bien/mal). Solo usa mis notas y las del otro que estén
+ * compartidas — la privacidad se respeta también aquí.
+ */
+export function summarizeCyclePoint(
+  targetDate: ISODate,
   entries: Record<ISODate, DayEntry>,
   starts: ISODate[],
+  windows: CycleWindow[],
+  periodLen: number,
   me: Person,
   otherNoteDefaultShared: boolean,
-  window = 1,
 ): string | null {
+  const target = coordOf(targetDate, entries, windows, periodLen);
+  const matches = similarDays(targetDate, entries, windows, periodLen);
+  if (!target || !matches.length) return null;
+
   const meMeta = PERSON_META[me];
   const otherMeta = PERSON_META[OTHER[me]];
 
-  const matches: { date: ISODate; e: DayEntry; startIdx: number }[] = [];
-  for (const d of Object.keys(entries).sort()) {
-    const dcd = cycleDayOf(d, starts);
-    if (dcd == null || Math.abs(dcd - cd) > window) continue;
-    const e = entries[d];
-    if (!e) continue;
-    let startIdx = -1;
-    for (let i = 0; i < starts.length; i++) if (starts[i] <= d) startIdx = i;
-    matches.push({ date: d, e, startIdx });
-  }
-  if (!matches.length) return null;
+  // ¿Cuántos ciclos distintos aportan datos?
+  const idxOf = (d: ISODate) => {
+    let idx = -1;
+    for (let i = 0; i < starts.length; i++) if (starts[i] <= d) idx = i;
+    return idx;
+  };
+  const cycles = new Set(matches.map((m) => idxOf(m.date))).size;
+  const flowN = matches.filter((m) => (m.entry.flow ?? 0) > 0).length;
 
-  const cycles = new Set(matches.map((m) => m.startIdx)).size;
-  const flowN = matches.filter((m) => (m.e.flow ?? 0) > 0).length;
-
-  const tally = (key: 'moodHer' | 'moodHim') => {
+  const tallyMoods = (key: 'moodHer' | 'moodHim') => {
     const counts = new Map<string, number>();
     for (const m of matches) {
-      const mood = m.e[key];
+      const mood = m.entry[key];
       if (mood) counts.set(mood, (counts.get(mood) ?? 0) + 1);
     }
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
-      .map(([m, n]) => `${m}×${n}`)
+      .map(([mo, n]) => `${mo}×${n}`)
       .join(' ');
   };
 
-  const herMoods = tally('moodHer');
-  const himMoods = tally('moodHim');
-
   const snippets: string[] = [];
-  for (const m of matches.slice(-4).reverse()) {
-    const mine = m.e[meMeta.noteKey];
-    const theirs = m.e[otherMeta.noteKey];
-    const theirsShared = m.e[otherMeta.sharedKey] ?? otherNoteDefaultShared;
+  for (const m of matches.slice(0, 4)) {
+    const mine = m.entry[meMeta.noteKey];
+    const theirs = m.entry[otherMeta.noteKey];
+    const theirsShared = m.entry[otherMeta.sharedKey] ?? otherNoteDefaultShared;
     const pick = mine ?? (theirsShared ? theirs : undefined);
     if (pick) {
       const short = pick.length > 42 ? pick.slice(0, 42) + '…' : pick;
@@ -377,13 +479,25 @@ export function summarizeCycleDay(
   }
 
   const lines = [
-    `✨ Día ${cd} del ciclo — resumen automático (${matches.length} registro${
+    `✨ Día ${target.cdF} · ${PHASE_INFO[target.phase].name} — ${matches.length} día${
       matches.length === 1 ? '' : 's'
-    }, ${cycles} ciclo${cycles === 1 ? '' : 's'}):`,
+    } parecido${matches.length === 1 ? '' : 's'} en ${cycles} ciclo${cycles === 1 ? '' : 's'}:`,
   ];
-  if (flowN > 0) lines.push(`🩸 Regla en ${flowN} de ${matches.length} registros.`);
-  if (herMoods) lines.push(`🌸 Ella: ${herMoods}`);
-  if (himMoods) lines.push(`🌊 Él: ${himMoods}`);
+  if (flowN > 0) lines.push(`🩸 Regla en ${flowN} de ${matches.length}.`);
+
+  const herMoods = tallyMoods('moodHer');
+  const himMoods = tallyMoods('moodHim');
+  if (herMoods) lines.push(`${PERSON_META.her.emoji} ${PERSON_META.her.label}: ${herMoods}`);
+  if (himMoods) lines.push(`${PERSON_META.him.emoji} ${PERSON_META.him.label}: ${himMoods}`);
+
+  for (const p of ['her', 'him'] as Person[]) {
+    const meta = PERSON_META[p];
+    const good = tallyTags(matches.map((m) => m.entry[meta.goodKey]));
+    const bad = tallyTags(matches.map((m) => m.entry[meta.badKey]));
+    if (good) lines.push(`✅ A ${meta.label} le sienta bien: ${good}`);
+    if (bad) lines.push(`⚠️ A ${meta.label} le sienta mal: ${bad}`);
+  }
+
   if (snippets.length) lines.push(`📝 ${snippets.join(' · ')}`);
   return lines.join('\n');
 }

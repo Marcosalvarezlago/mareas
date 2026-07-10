@@ -57,8 +57,8 @@ export function PrivacyCard() {
           {row('Compartir mis resúmenes del ciclo por defecto', 'summariesShared')}
           <ThemedText type="small" style={{ color: palette.textSecondary }}>
             El candado 🔒/👁️ de cada nota o resumen concreto siempre manda sobre
-            estos ajustes. Los emojis de estado se comparten siempre: son el
-            idioma común de la pareja.
+            estos ajustes. Los emojis de estado y el bienestar (qué sienta
+            bien/mal) se comparten siempre: son el idioma de cuidado de la pareja.
           </ThemedText>
         </>
       )}
