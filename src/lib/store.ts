@@ -27,6 +27,11 @@ interface AppState {
   updateDay: (date: ISODate, patch: Partial<Omit<DayEntry, 'date'>>) => void;
   updateCycleNote: (coordKey: string, patch: Partial<CycleDayNote>) => void;
   updateSettings: (patch: Partial<Settings>) => void;
+  /** Sustituye diario y resúmenes de golpe (datos de ejemplo, import futuro). */
+  replaceData: (
+    entries: Record<ISODate, DayEntry>,
+    cycleNotes: Record<string, CycleDayNote>,
+  ) => void;
   clearAll: () => void;
 }
 
@@ -74,6 +79,8 @@ export const useApp = create<AppState>()(
 
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
+
+      replaceData: (entries, cycleNotes) => set({ entries, cycleNotes }),
 
       clearAll: () =>
         set({ entries: {}, cycleNotes: {}, settings: { ...DEFAULT_SETTINGS } }),

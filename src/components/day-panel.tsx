@@ -301,13 +301,13 @@ export function DayPanel({ date, onRequestPrivacy }: Props) {
               {otherMeta.emoji} {otherMeta.label}
             </ThemedText>
             <ThemedText>{otherMood ? `Se siente ${otherMood}` : 'Sin estado registrado'}</ThemedText>
-            {(otherGood || otherBad) && (
+            {otherGood || otherBad ? (
               <ThemedText type="small">
                 {otherGood ? `✅ ${otherGood}` : ''}
                 {otherGood && otherBad ? '   ' : ''}
                 {otherBad ? `⚠️ ${otherBad}` : ''}
               </ThemedText>
-            )}
+            ) : null}
             {otherNoteVisible && otherNote ? (
               <ThemedText style={{ marginTop: Spacing.one }}>“{otherNote}”</ThemedText>
             ) : (
@@ -414,13 +414,13 @@ export function DayPanel({ date, onRequestPrivacy }: Props) {
                   {mem.entry.moodHim ?? ''}
                   {(mem.entry.flow ?? 0) > 0 ? ' 🩸' : ''}
                 </ThemedText>
-                {(goods || bads) && (
+                {goods || bads ? (
                   <ThemedText type="small">
                     {goods ? `✅ ${goods}` : ''}
                     {goods && bads ? '   ' : ''}
                     {bads ? `⚠️ ${bads}` : ''}
                   </ThemedText>
-                )}
+                ) : null}
                 {mNote ? (
                   <ThemedText type="small">
                     {meMeta.emoji} “{mNote}”

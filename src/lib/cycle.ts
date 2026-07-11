@@ -557,8 +557,15 @@ export function summarizeCyclePoint(
     const theirsShared = effectiveShared(otherMode, m.entry[otherMeta.sharedKey]);
     const pick = mine ?? (theirsShared ? theirs : undefined);
     if (pick) {
-      const short = pick.length > 42 ? pick.slice(0, 42) + '…' : pick;
-      snippets.push(`«${short}» (${formatShort(m.date)})`);
+      // Las notas pueden ser multilínea: aplanar espacios y cortar en palabra.
+      const clean = pick.replace(/\s+/g, ' ').trim();
+      let short = clean;
+      if (clean.length > 48) {
+        const cut = clean.slice(0, 48);
+        const sp = cut.lastIndexOf(' ');
+        short = (sp > 30 ? cut.slice(0, sp) : cut) + '…';
+      }
+      if (short) snippets.push(`«${short}» (${formatShort(m.date)})`);
     }
   }
   if (snippets.length) sentences.push(`De las notas: ${snippets.join(' · ')}.`);
