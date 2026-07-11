@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -27,6 +27,8 @@ export function PrivacyCard({ open, onToggleOpen, hint, onClearHint }: Props) {
   const palette = usePalette();
   const me = useApp((s) => s.settings.perspective);
   const privacy = useApp((s) => s.settings.privacy);
+  const matchRadius = useApp((s) => s.settings.matchRadius);
+  const aiApiKey = useApp((s) => s.settings.aiApiKey);
   const updateSettings = useApp((s) => s.updateSettings);
   const replaceData = useApp((s) => s.replaceData);
   const [confirmDemo, setConfirmDemo] = useState(false);
@@ -43,7 +45,7 @@ export function PrivacyCard({ open, onToggleOpen, hint, onClearHint }: Props) {
     <ThemedView type="backgroundElement" style={styles.card}>
       <Pressable onPress={onToggleOpen} hitSlop={8} style={styles.headRow}>
         <ThemedText style={styles.h}>
-          {open ? '▾' : '▸'} 🔐 Privacidad · {meMeta.emoji} {meMeta.label}
+          {open ? '▾' : '▸'} 🔐 Privacidad y ajustes · {meMeta.emoji} {meMeta.label}
         </ThemedText>
         <ThemedText type="small" style={{ color: palette.textSecondary }}>
           {PRIVACY_MODES.find((p) => p.mode === mode)?.icon}{' '}
@@ -90,6 +92,54 @@ export function PrivacyCard({ open, onToggleOpen, hint, onClearHint }: Props) {
             (qué sienta bien/mal) se comparten siempre: son el idioma de cuidado
             de la pareja. En «selección manual» decides con el candado 🔒/👁️ de
             cada elemento.
+          </ThemedText>
+
+          <ThemedText style={styles.subhead}>🎯 Radio de días equivalentes</ThemedText>
+          <View style={styles.radiusRow}>
+            {[0, 1, 2, 3].map((r) => {
+              const active = matchRadius === r;
+              return (
+                <Pressable
+                  key={r}
+                  onPress={() => updateSettings({ matchRadius: r })}
+                  style={[
+                    styles.radiusBtn,
+                    { backgroundColor: active ? palette.tint : palette.background },
+                  ]}>
+                  <Text
+                    style={{
+                      color: active ? '#fff' : palette.text,
+                      fontWeight: '700',
+                      fontSize: 13,
+                    }}>
+                    {r === 0 ? 'Exacto' : `±${r}`}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <ThemedText type="small" style={{ color: palette.textSecondary }}>
+            Cuántos días vecinos cuentan para el resumen y para «en este punto del
+            ciclo». Cada fase tiene su tope (la regla admite ±1 como máximo) y las
+            fases nunca se mezclan.
+          </ThemedText>
+
+          <ThemedText style={styles.subhead}>🤖 Resumen con IA (opcional)</ThemedText>
+          <TextInput
+            value={aiApiKey}
+            onChangeText={(t) => updateSettings({ aiApiKey: t })}
+            placeholder="Clave de API de Anthropic (sk-ant-…)"
+            placeholderTextColor={palette.textSecondary}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={[styles.keyInput, { backgroundColor: palette.background, color: palette.text }]}
+          />
+          <ThemedText type="small" style={{ color: palette.textSecondary }}>
+            Con clave, el botón «Generar» del resumen llama a un chatbot (Claude) para
+            redactarlo — cuesta una fracción de céntimo por resumen y solo se usa al
+            pulsarlo. La clave se guarda únicamente en este dispositivo. Sin clave, se
+            usa el resumen estadístico local (gratis).
           </ThemedText>
 
           <Pressable
@@ -155,5 +205,19 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   modeIcon: { fontSize: 18 },
+  subhead: { fontWeight: '700', fontSize: 14, marginTop: Spacing.two },
+  radiusRow: { flexDirection: 'row', gap: Spacing.two },
+  radiusBtn: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: Spacing.two,
+    alignItems: 'center',
+  },
+  keyInput: {
+    borderRadius: 10,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    fontSize: 14,
+  },
   switchUser: { marginTop: Spacing.one },
 });

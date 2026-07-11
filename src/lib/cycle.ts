@@ -8,14 +8,7 @@
 import type { ThemeColor } from '@/constants/theme';
 
 import { addDays, diffDays, formatShort, isBetween, type ISODate } from './dates';
-import {
-  effectiveShared,
-  OTHER,
-  PERSON_META,
-  type DayEntry,
-  type Person,
-  type PrivacyMode,
-} from './types';
+import { PERSON_META, type DayEntry, type Person } from './types';
 
 /** Un día con sangrado separado >3 días del anterior inicia un ciclo nuevo. */
 const NEW_PERIOD_GAP = 3;
@@ -235,47 +228,82 @@ export function cycleDayOf(date: ISODate, starts: ISODate[]): number | null {
 
 export const PHASE_INFO: Record<
   Phase,
-  { name: string; hint: string; body: string; mind: string }
+  { name: string; hint: string; body: string; mind: string; diet: string; care: string }
 > = {
   menstrual: {
     name: 'Menstruación',
     hint: 'Días de cuidados extra 🫂',
     body:
-      'El endometrio se desprende y estrógenos y progesterona están en mínimos. ' +
-      'Son habituales los cólicos, la fatiga y la sensibilidad; el hierro baja con el sangrado.',
+      'El endometrio se desprende y sale en forma de sangrado; estrógenos y progesterona ' +
+      'están en su mínimo. Las prostaglandinas que ayudan al útero a contraerse causan los ' +
+      'cólicos, y con el sangrado se pierde hierro. Fatiga, dolor lumbar y sensibilidad son normales.',
     mind:
-      'Energía e interés social suelen estar en mínimos: el descanso rinde doble. ' +
-      'Calor, sueño y no exigirse demasiado ayudan más que forzar planes.',
+      'Energía e interés social en mínimos: el cuerpo pide recogimiento y el descanso rinde ' +
+      'doble. No es flojera, es fisiología. El calor local alivia los cólicos tanto como ' +
+      'muchos analgésicos suaves.',
+    diet:
+      'Toca reponer hierro: legumbres, espinacas, frutos secos o carne, junto a vitamina C ' +
+      '(cítricos, pimiento) para absorberlo mejor. Chocolate negro y plátano aportan magnesio. ' +
+      'Reducir alcohol, café y ultraprocesados suele aliviar la inflamación.',
+    care:
+      'Calor en el abdomen, dormir más y movimiento suave (paseo, estiramientos, yoga). ' +
+      'Si el dolor te tumba cada mes o el sangrado es muy abundante, no lo normalices: ' +
+      'coméntalo con tu médico.',
   },
   folicular: {
     name: 'Fase folicular',
     hint: 'Energía subiendo 🌱',
     body:
-      'La hormona FSH madura un nuevo folículo y el estrógeno sube día a día: ' +
-      'el cuerpo entero se prepara para la ovulación.',
+      'La hipófisis libera FSH, que madura un nuevo folículo en el ovario; ese folículo ' +
+      'fabrica estrógeno en ascenso, que regenera el endometrio y mejora la piel, la energía ' +
+      'y la sensibilidad a la insulina.',
     mind:
-      'Con el estrógeno en ascenso suelen volver la energía, el ánimo y la concentración. ' +
-      'Para muchas personas es la mejor fase para empezar cosas.',
+      'Con el estrógeno subiendo vuelven la motivación, la concentración y las ganas de ' +
+      'gente. Para muchas personas es la mejor fase para empezar proyectos, decidir y aprender.',
+    diet:
+      'El cuerpo aprovecha muy bien los carbohidratos complejos: avena, quinoa, fruta. ' +
+      'Proteína y verdura fresca acompañan la reconstrucción del endometrio; los fermentados ' +
+      '(yogur, kéfir) ayudan a metabolizar el estrógeno.',
+    care:
+      'El mejor momento para entrenamientos exigentes: fuerza, series, retos nuevos — la ' +
+      'recuperación está en su punto óptimo. Buena fase para citas médicas o decisiones difíciles.',
   },
   fertil: {
     name: 'Ventana fértil',
     hint: 'Máxima probabilidad de embarazo ⚡',
     body:
-      'Rodea a la ovulación: el óvulo vive ~24 h, pero los espermatozoides sobreviven ' +
-      'hasta 5 días — por eso la ventana dura unos 6-7 días, no uno.',
+      'Un pico de LH dispara la ovulación: el ovario libera el óvulo, que vive unas 24 horas. ' +
+      'Los espermatozoides sobreviven hasta 5 días, por eso la ventana fértil dura ~6-7 días. ' +
+      'Tras ovular, la temperatura basal sube ~0,3 °C y el flujo se vuelve claro y elástico.',
     mind:
-      'Pico de estrógeno (y algo de testosterona): sociabilidad, seguridad y deseo ' +
-      'suelen estar en su punto más alto del ciclo.',
+      'Estrógeno en máximo y un toque de testosterona: sociabilidad, seguridad y deseo suelen ' +
+      'estar en su pico. Algunas personas notan una punzada pélvica al ovular (mittelschmerz); es normal.',
+    diet:
+      'Antioxidantes (frutos rojos, verduras de colores), zinc (semillas de calabaza, marisco) ' +
+      'y omega-3 (pescado azul, nueces) acompañan la ovulación. E hidratarse: el cuerpo va a plena máquina.',
+    care:
+      'Máxima probabilidad de embarazo: si no se busca, el método anticonceptivo real es ' +
+      'imprescindible (esta app no lo es). Energía alta: buen momento para lo social y lo intenso.',
   },
   lutea: {
     name: 'Fase lútea',
     hint: 'Recta final del ciclo 🌙',
     body:
-      'El folículo vacío (cuerpo lúteo) produce progesterona: temperatura algo más alta, ' +
-      'posible hinchazón y sensibilidad en el pecho. Si no hay embarazo, cae y llega la regla.',
+      'El folículo vacío se convierte en cuerpo lúteo y fabrica progesterona: sube ~0,3 °C la ' +
+      'temperatura, se ralentiza la digestión (hinchazón) y se sensibiliza el pecho. Si no hay ' +
+      'embarazo, la progesterona cae en picado y ese desplome dispara la regla — y el SPM final.',
     mind:
-      'Al final de esta fase puede aparecer el SPM: irritabilidad, antojos o ánimo más frágil. ' +
-      'No es debilidad ni exageración: es química, y pasa.',
+      'La progesterona es sedante: más sueño, más hambre, menos paciencia. Los últimos 3-5 días ' +
+      'pueden traer SPM: irritabilidad, ánimo frágil, antojos. Saberlo y nombrarlo desactiva la ' +
+      'mitad de las discusiones.',
+    diet:
+      'El gasto calórico sube ~100-300 kcal/día: el hambre extra es real. Carbohidratos complejos ' +
+      'y proteína estabilizan el ánimo; magnesio (chocolate negro, frutos secos) y calcio alivian ' +
+      'el SPM. Menos sal (hinchazón), café y alcohol (sueño e irritabilidad).',
+    care:
+      'Bajar el listón deportivo sin parar del todo: fuerza suave, caminar, dormir media hora más. ' +
+      'Planificar menos compromisos en los últimos días. Si el SPM rompe la vida cada mes, tiene ' +
+      'nombre (TDPM) y tratamiento: consulta médica.',
   },
 };
 
@@ -325,12 +353,16 @@ function coordOf(
   };
 }
 
-/** Tolerancia de emparejamiento por fase (la regla es lo más "fijo"). */
-const MATCH_WINDOW: Record<Phase, number> = {
+/**
+ * Tope de radio por fase: el usuario elige el radio (0 = día exacto … ±3),
+ * pero cada fase lo acota — la regla es lo más rígido. Cruzar de fase es
+ * imposible siempre (phaseDelta exige fase idéntica).
+ */
+export const PHASE_RADIUS_CAP: Record<Phase, number> = {
   menstrual: 1,
-  folicular: 2,
+  folicular: 3,
   fertil: 2,
-  lutea: 2,
+  lutea: 3,
 };
 
 /**
@@ -385,10 +417,12 @@ export function similarDays(
   entries: Record<ISODate, DayEntry>,
   windows: CycleWindow[],
   periodLen: number,
-  max = 12,
+  radius = 2,
+  max = 60,
 ): SimilarDay[] {
   const target = coordOf(targetDate, entries, windows, periodLen);
   if (!target) return [];
+  const effective = Math.min(Math.max(0, radius), PHASE_RADIUS_CAP[target.phase]);
   const out: SimilarDay[] = [];
   for (const d of Object.keys(entries).sort()) {
     if (d === targetDate) continue; // todos los equivalentes, menos él mismo
@@ -397,7 +431,7 @@ export function similarDays(
     const c = coordOf(d, entries, windows, periodLen);
     if (!c) continue;
     const delta = phaseDelta(target, c);
-    if (delta == null || delta > MATCH_WINDOW[target.phase]) continue;
+    if (delta == null || delta > effective) continue;
     out.push({ date: d, cycleDay: c.cdF, delta, entry: e });
   }
   return out.reverse().slice(0, max); // más reciente primero
@@ -489,10 +523,10 @@ function moodPairs(matches: SimilarDay[], key: 'moodHer' | 'moodHim') {
 }
 
 /**
- * Resumen AUTOMÁTICO y local del punto del ciclo, en prosa: estadística
- * sencilla sobre los días equivalentes (misma fase, posición comparable,
- * ventana adyacente), incluido el bienestar. Solo usa mis notas y las del
- * otro que estén compartidas — la privacidad se respeta también aquí.
+ * Resumen AUTOMÁTICO y local del punto del ciclo, en prosa y en SEGUNDA
+ * persona ("sueles…", "te sienta…"): estadística sencilla SOLO sobre los
+ * registros propios en los días equivalentes. El resumen es de uno mismo;
+ * el de la pareja se comparte aparte si se quiere.
  */
 export function summarizeCyclePoint(
   targetDate: ISODate,
@@ -501,14 +535,13 @@ export function summarizeCyclePoint(
   windows: CycleWindow[],
   periodLen: number,
   me: Person,
-  otherMode: PrivacyMode,
+  radius = 2,
 ): string | null {
   const target = coordOf(targetDate, entries, windows, periodLen);
-  const matches = similarDays(targetDate, entries, windows, periodLen);
+  const matches = similarDays(targetDate, entries, windows, periodLen, radius);
   if (!target || !matches.length) return null;
 
-  const meMeta = PERSON_META[me];
-  const otherMeta = PERSON_META[OTHER[me]];
+  const meta = PERSON_META[me];
 
   const idxOf = (d: ISODate) => {
     let idx = -1;
@@ -521,54 +554,48 @@ export function summarizeCyclePoint(
 
   const sentences: string[] = [];
   sentences.push(
-    `Basado en ${n} día${n === 1 ? '' : 's'} equivalente${n === 1 ? '' : 's'} de ${cycles} ciclo${
+    `Basado en tus ${n} día${n === 1 ? '' : 's'} equivalente${n === 1 ? '' : 's'} de ${cycles} ciclo${
       cycles === 1 ? '' : 's'
     } (${PHASE_INFO[target.phase].name.toLowerCase()}).`,
   );
 
-  if (flowN === n) sentences.push('La regla estuvo presente en todos los registros.');
-  else if (flowN > 0) sentences.push(`Hubo regla en ${flowN} de ${n} registros.`);
+  if (me === 'her') {
+    if (flowN === n) sentences.push('Tuviste la regla en todos ellos.');
+    else if (flowN > 0) sentences.push(`Tuviste la regla en ${flowN} de ${n}.`);
+  }
 
-  for (const p of ['her', 'him'] as Person[]) {
-    const meta = PERSON_META[p];
-    const moods = moodPairs(matches, meta.moodKey);
-    if (moods.length) {
-      sentences.push(
-        `${meta.label} se sintió sobre todo ${proseList(moods)}.`,
-      );
-    }
-    const good = tagPairs(matches.map((m) => m.entry[meta.goodKey]));
-    const bad = tagPairs(matches.map((m) => m.entry[meta.badKey]));
-    if (good.length && bad.length) {
-      sentences.push(
-        `A ${meta.label} le sentó bien ${proseList(good)}; le sentó mal ${proseList(bad)}.`,
-      );
-    } else if (good.length) {
-      sentences.push(`A ${meta.label} le sentó bien ${proseList(good)}.`);
-    } else if (bad.length) {
-      sentences.push(`A ${meta.label} le sentó mal ${proseList(bad)}.`);
-    }
+  const moods = moodPairs(matches, meta.moodKey);
+  if (moods.length) sentences.push(`Sueles estar ${proseList(moods)}.`);
+
+  const good = tagPairs(matches.map((m) => m.entry[meta.goodKey]));
+  const bad = tagPairs(matches.map((m) => m.entry[meta.badKey]));
+  if (good.length && bad.length) {
+    sentences.push(`Te sienta bien ${proseList(good)}; te sienta mal ${proseList(bad)}.`);
+  } else if (good.length) {
+    sentences.push(`Te sienta bien ${proseList(good)}.`);
+  } else if (bad.length) {
+    sentences.push(`Te sienta mal ${proseList(bad)}.`);
   }
 
   const snippets: string[] = [];
-  for (const m of matches.slice(0, 4)) {
-    const mine = m.entry[meMeta.noteKey];
-    const theirs = m.entry[otherMeta.noteKey];
-    const theirsShared = effectiveShared(otherMode, m.entry[otherMeta.sharedKey]);
-    const pick = mine ?? (theirsShared ? theirs : undefined);
-    if (pick) {
-      // Las notas pueden ser multilínea: aplanar espacios y cortar en palabra.
-      const clean = pick.replace(/\s+/g, ' ').trim();
-      let short = clean;
-      if (clean.length > 48) {
-        const cut = clean.slice(0, 48);
-        const sp = cut.lastIndexOf(' ');
-        short = (sp > 30 ? cut.slice(0, sp) : cut) + '…';
-      }
-      if (short) snippets.push(`«${short}» (${formatShort(m.date)})`);
+  for (const m of matches) {
+    if (snippets.length >= 4) break;
+    const mine = m.entry[meta.noteKey];
+    if (!mine) continue;
+    // Las notas pueden ser multilínea: aplanar espacios y cortar en palabra.
+    const clean = mine.replace(/\s+/g, ' ').trim();
+    let short = clean;
+    if (clean.length > 48) {
+      const cut = clean.slice(0, 48);
+      const sp = cut.lastIndexOf(' ');
+      short = (sp > 30 ? cut.slice(0, sp) : cut) + '…';
     }
+    if (short) snippets.push(`«${short}» (${formatShort(m.date)})`);
   }
-  if (snippets.length) sentences.push(`De las notas: ${snippets.join(' · ')}.`);
+  if (snippets.length) sentences.push(`De tus notas: ${snippets.join(' · ')}.`);
+
+  // Si no hay nada propio (los equivalentes eran solo del otro), no hay resumen.
+  if (sentences.length === 1) return null;
 
   return sentences.join('\n');
 }

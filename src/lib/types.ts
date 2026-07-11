@@ -70,7 +70,7 @@ export interface PersonMeta {
 /** Mapea cada rol a sus campos, para escribir código simétrico. */
 export const PERSON_META: Record<Person, PersonMeta> = {
   her: {
-    label: 'Ella',
+    label: 'Maya',
     emoji: '🌸',
     moodKey: 'moodHer',
     noteKey: 'noteHer',
@@ -82,7 +82,7 @@ export const PERSON_META: Record<Person, PersonMeta> = {
     badKey: 'badHer',
   },
   him: {
-    label: 'Él',
+    label: 'Marcos',
     emoji: '🌊',
     moodKey: 'moodHim',
     noteKey: 'noteHim',
@@ -127,6 +127,16 @@ export interface Settings {
   /** true cuando ya se pasó por la puerta "¿Quién eres?". */
   roleChosen: boolean;
   privacy: Record<Person, PrivacyMode>;
+  /**
+   * Radio de "días equivalentes": 0 = solo el día exacto, hasta ±3. Cada fase
+   * tiene su propio tope (la regla es más rígida) y NUNCA se cruzan fases.
+   */
+  matchRadius: number;
+  /**
+   * Clave de API de Anthropic del usuario para el resumen con IA. Vive SOLO
+   * en este dispositivo (AsyncStorage); si está vacía se usa la estadística.
+   */
+  aiApiKey: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -135,4 +145,6 @@ export const DEFAULT_SETTINGS: Settings = {
   perspective: 'her',
   roleChosen: false,
   privacy: { her: 'manual', him: 'manual' },
+  matchRadius: 2,
+  aiApiKey: '',
 };

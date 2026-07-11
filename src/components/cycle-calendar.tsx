@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { PhaseInfoSheet } from '@/components/phase-info-sheet';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useCycle } from '@/hooks/use-cycle';
 import { usePalette } from '@/hooks/use-palette';
-import { dayPhase, PHASE_COLOR } from '@/lib/cycle';
+import { dayPhase, PHASE_COLOR, type Phase } from '@/lib/cycle';
 import { monthGrid, monthLabel, todayISO, WEEKDAYS_MIN, type ISODate } from '@/lib/dates';
 import { useApp } from '@/lib/store';
 
@@ -15,9 +16,11 @@ interface Props {
 }
 
 /**
- * Calendario real (mes/año navegables) con las fases del ciclo pintadas en
- * TODOS los días — pasados, presentes y futuros (proyección multi-ciclo).
- * Pulsación larga sobre un día (solo ella, y nunca en el futuro): marca/quita regla.
+ * Calendario real con las fases pintadas en todos los días. Lo REGISTRADO va
+ * a color pleno; lo PROYECTADO (futuro, o estimaciones) va atenuado — esa es
+ * la marca de "previsto", sin entrada aparte en la leyenda. La ovulación
+ * estimada lleva su propio anillo. Pulsación larga (solo Maya, ≤ hoy):
+ * marca/quita regla. Tocar una fase en la leyenda abre su ficha divulgativa.
  */
 export function CycleCalendar({ selectedDate, onSelect }: Props) {
   const palette = usePalette();
@@ -26,14 +29,14 @@ export function CycleCalendar({ selectedDate, onSelect }: Props) {
   const me = useApp((s) => s.settings.perspective);
   const { windows, periodLen } = useCycle();
   const today = todayISO();
+  const [infoPhase, setInfoPhase] = useState<Phase | null>(null);
 
   const [view, setView] = useState(() => ({
     y: Number(selectedDate.slice(0, 4)),
     m: Number(selectedDate.slice(5, 7)) - 1,
   }));
 
-  // Si el día seleccionado salta a otro mes (p. ej. desde la memoria cíclica),
-  // el calendario lo sigue.
+  // Si el día seleccionado salta a otro mes, el calendario lo sigue.
   useEffect(() => {
     setView({ y: Number(selectedDate.slice(0, 4)), m: Number(selectedDate.slice(5, 7)) - 1 });
   }, [selectedDate]);
@@ -48,6 +51,17 @@ export function CycleCalendar({ selectedDate, onSelect }: Props) {
     updateDay(date, { flow: (entries[date]?.flow ?? 0) > 0 ? 0 : 2 });
 
   const cells = monthGrid(view.y, view.m);
+  const ovulationDays = new Set(windows.filter((w) => w.valid).map((w) => w.ovulation));
+
+  // Leyenda en el orden del ciclo; las fases abren su ficha divulgativa.
+  const legend: { sw: object; label: string; phase?: Phase }[] = [
+    { sw: { backgroundColor: palette.period }, label: 'Regla', phase: 'menstrual' },
+    { sw: { backgroundColor: palette.follicularSoft }, label: 'Folicular', phase: 'folicular' },
+    { sw: { backgroundColor: palette.fertileSoft }, label: 'Fértil', phase: 'fertil' },
+    { sw: { borderWidth: 2, borderColor: palette.fertile }, label: 'Ovulación', phase: 'fertil' },
+    { sw: { backgroundColor: palette.luteaSoft }, label: 'Lútea', phase: 'lutea' },
+    { sw: { borderWidth: 2, borderColor: palette.tint }, label: 'Hoy' },
+  ];
 
   return (
     <View>
@@ -80,16 +94,16 @@ export function CycleCalendar({ selectedDate, onSelect }: Props) {
           const mood = entry?.moodHer ?? entry?.moodHim;
           const isToday = date === today;
           const isSelected = date === selectedDate;
+          const isOvulation = ovulationDays.has(date);
           const dp = dayPhase(date, entries, windows, periodLen);
 
           const dayStyle: object[] = [styles.day];
           let numColor: string = palette.text;
 
           if (dp) {
-            // Fondo suave según fase (también en meses futuros).
             dayStyle.push({ backgroundColor: palette[PHASE_COLOR[dp.phase].soft] });
             if (dp.phase === 'menstrual' && dp.projected) {
-              // Regla prevista: borde discontinuo coral.
+              // Regla prevista: además de la atenuación, borde discontinuo.
               dayStyle.push({
                 borderWidth: 1.5,
                 borderStyle: 'dashed',
@@ -99,15 +113,23 @@ export function CycleCalendar({ selectedDate, onSelect }: Props) {
             }
           }
           if (realFlow) {
-            // Regla registrada: coral sólido, intensidad → opacidad.
             dayStyle.push({
               backgroundColor: palette.period,
               opacity: 0.55 + (entry?.flow ?? 2) * 0.15,
             });
             numColor = '#ffffff';
           }
-          if (isToday || isSelected) {
+          // Todo lo proyectado va ATENUADO: así se distingue de lo registrado.
+          if (dp?.projected && !realFlow) {
+            dayStyle.push({ opacity: 0.55 });
+          }
+          if (isOvulation) {
+            dayStyle.push({ borderWidth: 2, borderStyle: 'solid', borderColor: palette.fertile });
+          }
+          if (isToday) {
             dayStyle.push({ borderWidth: 2, borderStyle: 'solid', borderColor: palette.tint });
+          } else if (isSelected) {
+            dayStyle.push({ borderWidth: 2, borderStyle: 'solid', borderColor: palette.text });
           }
 
           const canQuickMark = me === 'her' && date <= today;
@@ -129,36 +151,28 @@ export function CycleCalendar({ selectedDate, onSelect }: Props) {
       </View>
 
       <View style={styles.legend}>
-        {[
-          { sw: { backgroundColor: palette.period }, label: 'Regla' },
-          {
-            sw: {
-              borderWidth: 1.5,
-              borderStyle: 'dashed' as const,
-              borderColor: palette.period,
-              backgroundColor: palette.periodSoft,
-            },
-            label: 'Prevista',
-          },
-          { sw: { backgroundColor: palette.fertileSoft }, label: 'Fértil' },
-          { sw: { backgroundColor: palette.follicularSoft }, label: 'Folicular' },
-          { sw: { backgroundColor: palette.luteaSoft }, label: 'Lútea' },
-          { sw: { borderWidth: 2, borderColor: palette.tint }, label: 'Hoy' },
-        ].map(({ sw, label }) => (
-          <View key={label} style={styles.legendItem}>
+        {legend.map(({ sw, label, phase }) => (
+          <Pressable
+            key={label}
+            style={styles.legendItem}
+            onPress={phase ? () => setInfoPhase(phase) : undefined}
+            hitSlop={6}>
             <View style={[styles.swatch, sw]} />
-            <ThemedText type="small" style={{ color: palette.textSecondary }}>
+            <ThemedText
+              type="small"
+              style={{ color: phase ? palette.tint : palette.textSecondary }}>
               {label}
             </ThemedText>
-          </View>
+          </Pressable>
         ))}
       </View>
 
-      {me === 'her' && (
-        <ThemedText type="small" style={[styles.hint, { color: palette.textSecondary }]}>
-          💡 Mantén pulsado un día (de hoy hacia atrás) para marcar o quitar la regla.
-        </ThemedText>
-      )}
+      <ThemedText type="small" style={[styles.hint, { color: palette.textSecondary }]}>
+        Lo atenuado es previsión, no registro. Toca una fase de la leyenda para saber más.
+        {me === 'her' ? '\n💡 Mantén pulsado un día (de hoy hacia atrás) para marcar o quitar la regla.' : ''}
+      </ThemedText>
+
+      <PhaseInfoSheet phase={infoPhase} onClose={() => setInfoPhase(null)} />
     </View>
   );
 }

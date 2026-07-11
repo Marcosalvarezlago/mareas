@@ -1,8 +1,7 @@
-// Datos de ejemplo (~6 meses) para valorar la app con contenido realista:
-// ciclos de longitud variable, moods y bienestar coherentes con cada fase,
-// notas en castellano (alguna multilínea, a propósito) y resúmenes de punto
-// de ciclo ya compartidos. Determinista (PRNG con semilla): siempre genera
-// exactamente lo mismo.
+// Datos de ejemplo (~8 meses, DENSOS) para valorar la app con una base
+// realista: ciclos de longitud variable, moods y bienestar coherentes con
+// cada fase, muchas notas en castellano (algunas multilínea) y resúmenes de
+// punto de ciclo ya escritos y compartidos. Determinista (PRNG con semilla).
 
 import { addDays, todayISO, type ISODate } from './dates';
 import type { CycleDayNote, DayEntry, Flow } from './types';
@@ -21,36 +20,54 @@ function mulberry32(seed: number) {
 type DemoPhase = 'menstrual' | 'folicular' | 'fertil' | 'lutea';
 
 const MOODS_HER: Record<DemoPhase, readonly string[]> = {
-  menstrual: ['😴', '🤕', '😢', '😐', '😴'],
-  folicular: ['😊', '😊', '🥰', '😐'],
-  fertil: ['🥰', '😊', '🥰'],
-  lutea: ['😐', '😢', '😡', '🤯', '😴'],
+  menstrual: ['😴', '🤕', '😢', '😐', '😴', '🤕'],
+  folicular: ['😊', '😊', '🥰', '😐', '😊'],
+  fertil: ['🥰', '😊', '🥰', '😊'],
+  lutea: ['😐', '😢', '😡', '🤯', '😴', '😐'],
 };
 
-const MOODS_HIM = ['😊', '😐', '😴', '🥰', '😊'] as const;
+const MOODS_HIM = ['😊', '😐', '😴', '🥰', '😊', '😐'] as const;
 
 const NOTES_HER: Record<DemoPhase, readonly string[]> = {
   menstrual: [
     'cólicos fuertes por la mañana, mejor por la tarde',
-    'plan sofá, peli y manta',
+    'plan sofá, peli y manta, ni me vestí',
     'dolor de espalda baja\nno dormí bien',
     'flujo intenso hoy, en casa tranquila',
+    'me dolía hasta el pelo, ibuprofeno y a dormir',
+    'primer día llevadero, mejor que el mes pasado',
+    'teletrabajo salvador, no me veía en la oficina',
+    'la manta eléctrica es lo mejor que hemos comprado',
   ],
   folicular: [
     'con energía, día muy productivo',
-    'quedamos con amigas, genial',
+    'quedamos con amigas, me reí muchísimo',
     'me apetece empezar cosas nuevas',
+    'entrené fuerte y me sentí genial',
+    'día ligero, la cabeza clara',
+    'ordené medio piso, imparable',
+    'buen humor porque sí, qué gusto',
+    'planifiqué el viaje, ilusionada',
   ],
   fertil: [
     'día top, ánimo arriba',
     'noche divertida 😏',
-    'energía social a tope',
+    'energía social a tope, no quería volver a casa',
+    'me siento guapa hoy',
+    'punzada al lado derecho, ovulando fijo',
+    'ganas de fiesta y de todo',
   ],
   lutea: [
     'sensible, necesito mimos',
     'me enfado fácil, no es contigo',
     'antojo de dulce todo el día\ngalletas de chocolate',
     'hinchada y cansada, día lento',
+    'lloré con un anuncio, nivel de sensibilidad máximo',
+    'discusión tonta por nada, luego pedí perdón',
+    'el pecho sensible, señal de que queda poco',
+    'todo me molesta un poco hoy',
+    'necesito dormir más estos días',
+    'ansiedad por picar entre horas',
   ],
 };
 
@@ -60,24 +77,31 @@ const NOTES_HIM = [
   'paseo al atardecer, bien bonito',
   'compré chocolate 😌',
   'día raro, mejor no insistir',
+  'plan de pelis y sofá, perfecto',
+  'la vi radiante hoy',
+  'discutimos una tontería, arreglado con abrazo',
+  'le preparé la manta y una infusión',
+  'entrenamos juntos, muy divertido',
+  'noche de risas con amigos',
+  'me pidió espacio, se lo di',
 ] as const;
 
 const GOOD_HER: Record<DemoPhase, readonly string[]> = {
-  menstrual: ['manta eléctrica', 'infusión de jengibre', 'sofá y peli', 'calor local'],
-  folicular: ['correr', 'planes con amigas', 'comer ligero'],
-  fertil: ['salir a bailar', 'cita improvisada'],
-  lutea: ['chocolate negro', 'paseo suave', 'baño caliente', 'dormir 8 horas'],
+  menstrual: ['manta eléctrica', 'infusión de jengibre', 'sofá y peli', 'calor local', 'dormir siesta'],
+  folicular: ['correr', 'planes con amigas', 'comer ligero', 'madrugar'],
+  fertil: ['salir a bailar', 'cita improvisada', 'entrenar fuerte'],
+  lutea: ['chocolate negro', 'paseo suave', 'baño caliente', 'dormir 8 horas', 'yoga suave'],
 };
 
 const BAD_HER: Record<DemoPhase, readonly string[]> = {
-  menstrual: ['café', 'frío', 'estar de pie mucho rato'],
+  menstrual: ['café', 'frío', 'estar de pie mucho rato', 'vaqueros apretados'],
   folicular: ['trasnochar'],
   fertil: ['alcohol de más'],
-  lutea: ['café', 'discusiones tontas', 'azúcar de más', 'trasnochar'],
+  lutea: ['café', 'discusiones tontas', 'azúcar de más', 'trasnochar', 'sal de más'],
 };
 
-const GOOD_HIM = ['hacer deporte', 'cocinar juntos', 'siesta corta'] as const;
-const BAD_HIM = ['trasnochar', 'discutir por tonterías'] as const;
+const GOOD_HIM = ['hacer deporte', 'cocinar juntos', 'siesta corta', 'paseo'] as const;
+const BAD_HIM = ['trasnochar', 'discutir por tonterías', 'demasiado café'] as const;
 
 /** Resúmenes de punto de ciclo ya escritos (para ver la capa compartida). */
 const DEMO_CYCLE_NOTES: Record<string, CycleDayNote> = {
@@ -88,6 +112,16 @@ const DEMO_CYCLE_NOTES: Record<string, CycleDayNote> = {
   F2: {
     summaryHer: 'El día más intenso de sangrado. Teletrabajo si se puede.',
     summaryHerShared: true,
+  },
+  F6: {
+    summaryHer: 'Vuelve la energía de golpe: buen día para planes y para empezar cosas.',
+    summaryHerShared: true,
+  },
+  O0: {
+    summaryHer: 'Día de ovulación: a tope de todo. A veces una punzada en el lado derecho.',
+    summaryHerShared: true,
+    summaryHim: 'Su mejor día del mes: proponer plan grande.',
+    summaryHimShared: true,
   },
   B3: {
     summaryHer: 'Recta final: mecha corta y antojo de dulce. No es personal.',
@@ -108,11 +142,11 @@ export function buildDemoData(): {
   const today = todayISO();
   const entries: Record<ISODate, DayEntry> = {};
 
-  // Inicios de ciclo desde ~6 meses atrás; longitudes variables 26-30 días.
-  let start = addDays(today, -172);
+  // Inicios de ciclo desde ~8 meses atrás; longitudes variables 26-31 días.
+  let start = addDays(today, -240);
   const cycles: { start: ISODate; len: number }[] = [];
   for (;;) {
-    const len = 26 + Math.floor(rand() * 5);
+    const len = 26 + Math.floor(rand() * 6);
     cycles.push({ start, len });
     const next = addDays(start, len);
     if (next > today) break;
@@ -141,25 +175,27 @@ export function buildDemoData(): {
       const e: Partial<DayEntry> = {};
       if (phase === 'menstrual') e.flow = intensity[d - 1] ?? 1;
 
-      // No todos los días se registran: la vida real tiene huecos.
-      const active = phase === 'menstrual' || chance(0.75);
+      // Base densa: casi todos los días tienen registro, con algún hueco real.
+      const active = phase === 'menstrual' || chance(0.95);
       if (active) {
-        if (chance(0.7)) e.moodHer = pick(MOODS_HER[phase]);
-        if (chance(0.45)) e.moodHim = pick(MOODS_HIM);
-        if (chance(0.32)) {
+        if (chance(0.9)) e.moodHer = pick(MOODS_HER[phase]);
+        if (chance(0.7)) e.moodHim = pick(MOODS_HIM);
+        if (chance(0.55)) {
           e.noteHer = pick(NOTES_HER[phase]);
           if (chance(0.55)) e.noteHerShared = true;
         }
-        if (chance(0.16)) {
+        if (chance(0.4)) {
           e.noteHim = pick(NOTES_HIM);
-          if (chance(0.4)) e.noteHimShared = true;
+          if (chance(0.45)) e.noteHimShared = true;
         }
-        if (chance(phase === 'menstrual' || phase === 'lutea' ? 0.45 : 0.2)) {
+        if (chance(phase === 'menstrual' || phase === 'lutea' ? 0.6 : 0.35)) {
           e.goodHer = pick(GOOD_HER[phase]);
         }
-        if (chance(phase === 'lutea' ? 0.4 : 0.2)) e.badHer = pick(BAD_HER[phase]);
-        if (chance(0.1)) e.goodHim = pick(GOOD_HIM);
-        if (chance(0.08)) e.badHim = pick(BAD_HIM);
+        if (chance(phase === 'lutea' ? 0.5 : phase === 'menstrual' ? 0.4 : 0.2)) {
+          e.badHer = pick(BAD_HER[phase]);
+        }
+        if (chance(0.25)) e.goodHim = pick(GOOD_HIM);
+        if (chance(0.18)) e.badHim = pick(BAD_HIM);
       }
 
       if (Object.keys(e).length) entries[date] = { date, ...e };
