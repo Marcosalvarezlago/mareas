@@ -7,6 +7,7 @@ import { Spacing } from '@/constants/theme';
 import { useCycle } from '@/hooks/use-cycle';
 import { usePalette } from '@/hooks/use-palette';
 import {
+  cycleCoord,
   dayPhase,
   PHASE_COLOR,
   PHASE_INFO,
@@ -16,21 +17,29 @@ import {
 import { diffDays, formatLong, formatShort, todayISO, type ISODate } from '@/lib/dates';
 import { useApp } from '@/lib/store';
 import {
+  effectiveShared,
   FLOW_LABELS,
   MOODS,
   OTHER,
   PERSON_META,
+  PRIVACY_MODES,
   type CycleDayNote,
   type DayEntry,
   type Flow,
 } from '@/lib/types';
 
+interface Props {
+  date: ISODate;
+  /** Llamado al tocar un candado estando en modo global (abre Privacidad). */
+  onRequestPrivacy: (hint: string) => void;
+}
+
 /**
  * Info del día seleccionado: general (fase) → diario → resumen del punto del
- * ciclo → días parecidos. El futuro es de solo lectura: el diario se escribe
- * cuando se vive.
+ * ciclo (manual + automático) → días equivalentes. Cada persona ve su capa:
+ * lo suyo editable, del otro solo lo compartido.
  */
-export function DayPanel({ date }: { date: ISODate }) {
+export function DayPanel({ date, onRequestPrivacy }: Props) {
   const palette = usePalette();
   const entries = useApp((s) => s.entries);
   const cycleNotes = useApp((s) => s.cycleNotes);
@@ -47,16 +56,13 @@ export function DayPanel({ date }: { date: ISODate }) {
 
   const entry = entries[date];
   const dp = dayPhase(date, entries, windows, periodLen);
-  const cd = dp?.cycleDay ?? null;
+  const coord = cycleCoord(date, entries, windows, periodLen);
   const meMeta = PERSON_META[me];
   const otherMeta = PERSON_META[OTHER[me]];
   const luna = PERSON_META.her; // rol que vive el ciclo
 
-  // --- compartición efectiva: candado del día > preferencia por defecto ---
-  const myDefaultNotes = privacy[me].notesShared;
-  const otherDefaultNotes = privacy[OTHER[me]].notesShared;
-  const myNoteShared = entry?.[meMeta.sharedKey] ?? myDefaultNotes;
-  const otherNoteShared = entry?.[otherMeta.sharedKey] ?? otherDefaultNotes;
+  const myMode = privacy[me];
+  const otherMode = privacy[OTHER[me]];
 
   const myMood = entry?.[meMeta.moodKey];
   const myNote = entry?.[meMeta.noteKey] ?? '';
@@ -66,43 +72,59 @@ export function DayPanel({ date }: { date: ISODate }) {
   const otherNote = entry?.[otherMeta.noteKey];
   const otherGood = entry?.[otherMeta.goodKey];
   const otherBad = entry?.[otherMeta.badKey];
+  const otherNoteVisible = effectiveShared(otherMode, entry?.[otherMeta.sharedKey]);
 
-  // --- resumen del punto del ciclo ---
-  const cycleNote: CycleDayNote = (cd != null ? cycleNotes[cd] : undefined) ?? {};
+  // --- resumen del punto del ciclo (clave = coordenada F/B/O) ---
+  const cycleNote: CycleDayNote = (coord ? cycleNotes[coord.key] : undefined) ?? {};
   const mySummary = cycleNote[meMeta.summaryKey] ?? '';
-  const mySummaryShared =
-    cycleNote[meMeta.summarySharedKey] ?? privacy[me].summariesShared;
+  const myAuto = cycleNote[meMeta.autoSummaryKey] ?? '';
   const otherSummary = cycleNote[otherMeta.summaryKey];
-  const otherSummaryShared =
-    cycleNote[otherMeta.summarySharedKey] ?? privacy[OTHER[me]].summariesShared;
+  const otherAuto = cycleNote[otherMeta.autoSummaryKey];
+  const otherSummaryVisible = effectiveShared(
+    otherMode,
+    cycleNote[otherMeta.summarySharedKey],
+  );
 
-  // Días parecidos: misma fase, posición comparable (ver lib/cycle.ts).
+  // Días equivalentes de cualquier ciclo (antes o después del seleccionado).
   const memories = similarDays(date, entries, windows, periodLen).slice(0, 6);
 
   // --- helpers de escritura ---
   const patchEntry = (p: Partial<DayEntry>) => updateDay(date, p);
   const setFlow = (f: Flow) => patchEntry({ flow: (entry?.flow ?? 0) === f ? 0 : f });
   const generateSummary = () => {
-    if (cd == null) return;
+    if (!coord) return;
     const text = summarizeCyclePoint(
-      date, entries, starts, windows, periodLen, me, otherDefaultNotes,
+      date, entries, starts, windows, periodLen, me, otherMode,
     );
-    if (text) updateCycleNote(cd, { [meMeta.summaryKey]: text });
+    if (text) updateCycleNote(coord.key, { [meMeta.autoSummaryKey]: text });
   };
 
   const phaseColor = dp ? palette[PHASE_COLOR[dp.phase].main] : palette.textSecondary;
+  const modeInfo = PRIVACY_MODES.find((p) => p.mode === myMode);
 
-  const shareRow = (shared: boolean, explicit: boolean, onToggle: () => void) => (
-    <Pressable onPress={onToggle} style={styles.share} hitSlop={8}>
-      <Text style={{ fontSize: 15 }}>{shared ? '👁️' : '🔒'}</Text>
-      <ThemedText
-        type="small"
-        style={{ color: shared ? palette.fertile : palette.textSecondary }}>
-        {shared ? `Compartido con ${otherMeta.label}` : 'Privado · toca para compartir'}
-        {!explicit ? ' (por defecto)' : ''}
-      </ThemedText>
-    </Pressable>
-  );
+  /** Candado: en manual alterna; en modo global propone cambiar de modo. */
+  const shareRow = (explicit: boolean | undefined, onToggleManual: () => void) => {
+    const shared = effectiveShared(myMode, explicit);
+    const onPress =
+      myMode === 'manual'
+        ? onToggleManual
+        : () =>
+            onRequestPrivacy(
+              `Estás en modo «${modeInfo?.label}»: los candados individuales no aplican. ` +
+                'Si quieres decidir elemento a elemento, pasa a «Selección manual».',
+            );
+    return (
+      <Pressable onPress={onPress} style={styles.share} hitSlop={8}>
+        <Text style={{ fontSize: 15 }}>{shared ? '👁️' : '🔒'}</Text>
+        <ThemedText
+          type="small"
+          style={{ color: shared ? palette.fertile : palette.textSecondary }}>
+          {shared ? `Compartido con ${otherMeta.label}` : 'Privado'}
+          {myMode !== 'manual' ? ` · modo ${modeInfo?.label.toLowerCase()}` : ' · toca para cambiar'}
+        </ThemedText>
+      </Pressable>
+    );
+  };
 
   return (
     <View style={styles.wrap}>
@@ -188,7 +210,7 @@ export function DayPanel({ date }: { date: ISODate }) {
           </ThemedText>
         ) : (
           <>
-            {/* Regla (la registra Luna) */}
+            {/* Regla (la registra ella) */}
             <ThemedText type="small" style={[styles.sub, { color: palette.textSecondary }]}>
               🩸 Regla{me === 'him' ? ` · la registra ${luna.label}` : ''}
             </ThemedText>
@@ -217,7 +239,7 @@ export function DayPanel({ date }: { date: ISODate }) {
 
             {/* Mi estado */}
             <ThemedText type="small" style={[styles.sub, { color: palette.textSecondary }]}>
-              {meMeta.emoji} ¿Cómo estás, {meMeta.label}?
+              {meMeta.emoji} ¿Cómo estás?
             </ThemedText>
             <View style={styles.moodRow}>
               {MOODS.map((m) => {
@@ -258,7 +280,7 @@ export function DayPanel({ date }: { date: ISODate }) {
               />
             </View>
 
-            {/* Mi nota + compartir */}
+            {/* Mi nota */}
             <TextInput
               multiline
               value={myNote}
@@ -267,11 +289,13 @@ export function DayPanel({ date }: { date: ISODate }) {
               placeholderTextColor={palette.textSecondary}
               style={[styles.note, { backgroundColor: palette.background, color: palette.text }]}
             />
-            {shareRow(myNoteShared, entry?.[meMeta.sharedKey] != null, () =>
-              patchEntry({ [meMeta.sharedKey]: !myNoteShared }),
+            {shareRow(entry?.[meMeta.sharedKey], () =>
+              patchEntry({
+                [meMeta.sharedKey]: !effectiveShared(myMode, entry?.[meMeta.sharedKey]),
+              }),
             )}
 
-            {/* Lo del otro */}
+            {/* La capa compartida del otro */}
             <View style={[styles.divider, { backgroundColor: palette.backgroundSelected }]} />
             <ThemedText type="small" style={[styles.sub, { color: palette.textSecondary }]}>
               {otherMeta.emoji} {otherMeta.label}
@@ -284,7 +308,7 @@ export function DayPanel({ date }: { date: ISODate }) {
                 {otherBad ? `⚠️ ${otherBad}` : ''}
               </ThemedText>
             )}
-            {otherNoteShared && otherNote ? (
+            {otherNoteVisible && otherNote ? (
               <ThemedText style={{ marginTop: Spacing.one }}>“{otherNote}”</ThemedText>
             ) : (
               <ThemedText type="small" style={{ color: palette.textSecondary, marginTop: Spacing.one }}>
@@ -296,59 +320,88 @@ export function DayPanel({ date }: { date: ISODate }) {
       </ThemedView>
 
       {/* ---------- RESUMEN DEL PUNTO DEL CICLO ---------- */}
-      {cd != null && dp && (
+      {coord && dp && (
         <ThemedView type="backgroundElement" style={styles.card}>
           <ThemedText style={styles.h}>
-            🧭 Día {cd} · {PHASE_INFO[dp.phase].name}
+            🧭 Día {dp.cycleDay} · {PHASE_INFO[dp.phase].name}
           </ThemedText>
           <ThemedText type="small" style={{ color: palette.textSecondary }}>
-            Qué suele significar este punto del ciclo. El resumen automático usa los
-            días parecidos de la misma fase (no el calendario a secas).
+            {coord.context ? `${coord.context} · ` : ''}
+            Se guarda para todos los días equivalentes de todos los ciclos.
+          </ThemedText>
+
+          <ThemedText type="small" style={[styles.sub, { color: palette.textSecondary }]}>
+            📝 Tu resumen
           </ThemedText>
           <TextInput
             multiline
             value={mySummary}
-            onChangeText={(t) => updateCycleNote(cd, { [meMeta.summaryKey]: t })}
-            placeholder={`Tu resumen del día ${cd}: p. ej. «suele estar sensible, mejor planes tranquilos»`}
+            onChangeText={(t) => updateCycleNote(coord.key, { [meMeta.summaryKey]: t })}
+            placeholder="Con tus palabras: qué suele significar este punto del ciclo…"
             placeholderTextColor={palette.textSecondary}
             style={[styles.note, { backgroundColor: palette.background, color: palette.text }]}
           />
-          <View style={styles.summaryActions}>
-            {shareRow(mySummaryShared, cycleNote[meMeta.summarySharedKey] != null, () =>
-              updateCycleNote(cd, { [meMeta.summarySharedKey]: !mySummaryShared }),
-            )}
+
+          <View style={styles.autoHead}>
+            <ThemedText type="small" style={[styles.sub, { color: palette.textSecondary }]}>
+              ✨ Resumen automático
+            </ThemedText>
             {memories.length > 0 && (
               <Pressable
                 onPress={generateSummary}
                 style={[styles.genBtn, { backgroundColor: palette.tint }]}>
-                <Text style={styles.genBtnTxt}>
-                  ✨ {mySummary ? 'Regenerar' : 'Generar'} automático
-                </Text>
+                <Text style={styles.genBtnTxt}>{myAuto ? '↻ Actualizar' : '✨ Generar'}</Text>
               </Pressable>
             )}
           </View>
-          {otherSummaryShared && otherSummary ? (
+          {myAuto ? (
+            <View style={[styles.autoBox, { borderLeftColor: palette.tint }]}>
+              <ThemedText type="small">{myAuto}</ThemedText>
+            </View>
+          ) : (
+            <ThemedText type="small" style={{ color: palette.textSecondary }}>
+              {memories.length
+                ? 'Aún no generado: pulsa ✨ y se redactará con los días equivalentes.'
+                : 'Sin días equivalentes registrados todavía.'}
+            </ThemedText>
+          )}
+
+          {shareRow(cycleNote[meMeta.summarySharedKey], () =>
+            updateCycleNote(coord.key, {
+              [meMeta.summarySharedKey]: !effectiveShared(
+                myMode,
+                cycleNote[meMeta.summarySharedKey],
+              ),
+            }),
+          )}
+
+          {otherSummaryVisible && (otherSummary || otherAuto) ? (
             <>
               <View style={[styles.divider, { backgroundColor: palette.backgroundSelected }]} />
               <ThemedText type="small" style={{ color: palette.textSecondary }}>
                 {otherMeta.emoji} Resumen de {otherMeta.label}:
               </ThemedText>
-              <ThemedText type="small">“{otherSummary}”</ThemedText>
+              {otherSummary ? <ThemedText type="small">“{otherSummary}”</ThemedText> : null}
+              {otherAuto ? (
+                <ThemedText type="small" style={{ color: palette.textSecondary }}>
+                  ✨ {otherAuto}
+                </ThemedText>
+              ) : null}
             </>
           ) : null}
         </ThemedView>
       )}
 
-      {/* ---------- DÍAS PARECIDOS ---------- */}
+      {/* ---------- DÍAS EQUIVALENTES ---------- */}
       {memories.length > 0 && dp && (
         <ThemedView type="backgroundElement" style={styles.card}>
           <ThemedText style={styles.h}>🔁 En este punto del ciclo</ThemedText>
           <ThemedText type="small" style={{ color: palette.textSecondary }}>
-            Días parecidos de ciclos anteriores ({PHASE_INFO[dp.phase].name.toLowerCase()},
-            posición equivalente):
+            Días equivalentes de otros ciclos ({PHASE_INFO[dp.phase].name.toLowerCase()},
+            posición comparable):
           </ThemedText>
           {memories.map((mem) => {
-            const oShared = mem.entry[otherMeta.sharedKey] ?? otherDefaultNotes;
+            const oNoteVisible = effectiveShared(otherMode, mem.entry[otherMeta.sharedKey]);
             const oNote = mem.entry[otherMeta.noteKey];
             const mNote = mem.entry[meMeta.noteKey];
             const goods = [mem.entry.goodHer, mem.entry.goodHim].filter(Boolean).join(', ');
@@ -373,7 +426,7 @@ export function DayPanel({ date }: { date: ISODate }) {
                     {meMeta.emoji} “{mNote}”
                   </ThemedText>
                 ) : null}
-                {oShared && oNote ? (
+                {oNoteVisible && oNote ? (
                   <ThemedText type="small">
                     {otherMeta.emoji} “{oNote}”
                   </ThemedText>
@@ -443,19 +496,24 @@ const styles = StyleSheet.create({
     marginTop: Spacing.one,
   },
   share: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.one },
-  summaryActions: {
+  autoHead: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     flexWrap: 'wrap',
     gap: Spacing.two,
+  },
+  autoBox: {
+    borderLeftWidth: 3,
+    paddingLeft: Spacing.two,
+    paddingVertical: Spacing.one,
   },
   genBtn: {
     borderRadius: 999,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing.one,
   },
-  genBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  genBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 12 },
   divider: { height: 1, marginVertical: Spacing.two },
   memItem: {
     borderLeftWidth: 3,

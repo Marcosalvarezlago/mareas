@@ -11,18 +11,42 @@ import {
   DEFAULT_SETTINGS,
   type CycleDayNote,
   type DayEntry,
+  type PrivacyMode,
   type Settings,
 } from './types';
 
 interface AppState {
   entries: Record<ISODate, DayEntry>;
-  /** Resúmenes por día-de-ciclo (clave = día N del ciclo, no una fecha). */
-  cycleNotes: Record<number, CycleDayNote>;
+  /**
+   * Resúmenes por PUNTO del ciclo. Clave = coordenada fase-consciente
+   * ("F4", "B8", "O0" — ver coordKeyOf en cycle.ts), así el mismo resumen
+   * vale para todos los días equivalentes de todos los ciclos.
+   */
+  cycleNotes: Record<string, CycleDayNote>;
   settings: Settings;
   updateDay: (date: ISODate, patch: Partial<Omit<DayEntry, 'date'>>) => void;
-  updateCycleNote: (cycleDay: number, patch: Partial<CycleDayNote>) => void;
+  updateCycleNote: (coordKey: string, patch: Partial<CycleDayNote>) => void;
   updateSettings: (patch: Partial<Settings>) => void;
   clearAll: () => void;
+}
+
+/** Migra formatos antiguos guardados: claves numéricas y privacidad booleana. */
+function migrate(p: Partial<AppState>): Partial<AppState> {
+  if (p.cycleNotes) {
+    const notes: Record<string, CycleDayNote> = {};
+    for (const [k, v] of Object.entries(p.cycleNotes)) {
+      notes[/^[FBO]/.test(k) ? k : `F${k}`] = v; // "5" (día fijo) → "F5"
+    }
+    p = { ...p, cycleNotes: notes };
+  }
+  if (p.settings?.privacy) {
+    const priv = { ...p.settings.privacy } as Record<string, unknown>;
+    for (const person of ['her', 'him'] as const) {
+      if (typeof priv[person] !== 'string') priv[person] = 'manual';
+    }
+    p = { ...p, settings: { ...p.settings, privacy: priv as Record<'her' | 'him', PrivacyMode> } };
+  }
+  return p;
 }
 
 export const useApp = create<AppState>()(
@@ -40,11 +64,11 @@ export const useApp = create<AppState>()(
           },
         })),
 
-      updateCycleNote: (cycleDay, patch) =>
+      updateCycleNote: (coordKey, patch) =>
         set((s) => ({
           cycleNotes: {
             ...s.cycleNotes,
-            [cycleDay]: { ...(s.cycleNotes[cycleDay] ?? {}), ...patch },
+            [coordKey]: { ...(s.cycleNotes[coordKey] ?? {}), ...patch },
           },
         })),
 
@@ -57,10 +81,8 @@ export const useApp = create<AppState>()(
     {
       name: 'mareas-v1',
       storage: createJSONStorage(() => AsyncStorage),
-      // Rellena claves nuevas (privacy, cycleNotes…) al rehidratar datos
-      // guardados con una versión anterior del esquema.
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<AppState>;
+        const p = migrate((persisted ?? {}) as Partial<AppState>);
         return {
           ...current,
           ...p,

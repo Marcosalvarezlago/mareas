@@ -1,65 +1,101 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Switch, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { usePalette } from '@/hooks/use-palette';
 import { useApp } from '@/lib/store';
-import { PERSON_META } from '@/lib/types';
+import { PERSON_META, PRIVACY_MODES } from '@/lib/types';
+
+interface Props {
+  open: boolean;
+  onToggleOpen: () => void;
+  /** Propuesta mostrada cuando se llegó aquí tocando un candado en modo global. */
+  hint: string | null;
+  onClearHint: () => void;
+}
 
 /**
- * Configuración general de privacidad de la persona activa: qué se comparte
- * por defecto. El candado de cada día/resumen concreto manda sobre esto.
+ * Privacidad de la persona activa, con modo triple: todo privado, todo
+ * compartido o selección manual (candado a candado). Vive arriba de la
+ * página; tocar un candado individual estando en un modo global abre esta
+ * tarjeta proponiendo el cambio.
  */
-export function PrivacyCard() {
+export function PrivacyCard({ open, onToggleOpen, hint, onClearHint }: Props) {
   const palette = usePalette();
   const me = useApp((s) => s.settings.perspective);
   const privacy = useApp((s) => s.settings.privacy);
   const updateSettings = useApp((s) => s.updateSettings);
-  const [open, setOpen] = useState(false);
 
   const meMeta = PERSON_META[me];
-  const mine = privacy[me];
+  const mode = privacy[me];
 
-  const setPref = (key: 'notesShared' | 'summariesShared', value: boolean) =>
-    updateSettings({
-      privacy: { ...privacy, [me]: { ...mine, [key]: value } },
-    });
-
-  const row = (
-    label: string,
-    key: 'notesShared' | 'summariesShared',
-  ) => (
-    <View style={styles.row}>
-      <ThemedText type="small" style={styles.rowLabel}>
-        {label}
-      </ThemedText>
-      <Switch
-        value={mine[key]}
-        onValueChange={(v) => setPref(key, v)}
-        trackColor={{ true: palette.tint, false: palette.backgroundSelected }}
-        thumbColor="#ffffff"
-      />
-    </View>
-  );
+  const setMode = (m: typeof mode) => {
+    updateSettings({ privacy: { ...privacy, [me]: m } });
+    onClearHint();
+  };
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
-      <Pressable onPress={() => setOpen((v) => !v)} hitSlop={8}>
+      <Pressable onPress={onToggleOpen} hitSlop={8} style={styles.headRow}>
         <ThemedText style={styles.h}>
-          {open ? '▾' : '▸'} 🔐 Privacidad de {meMeta.emoji} {meMeta.label}
+          {open ? '▾' : '▸'} 🔐 Privacidad · {meMeta.emoji} {meMeta.label}
+        </ThemedText>
+        <ThemedText type="small" style={{ color: palette.textSecondary }}>
+          {PRIVACY_MODES.find((p) => p.mode === mode)?.icon}{' '}
+          {PRIVACY_MODES.find((p) => p.mode === mode)?.label}
         </ThemedText>
       </Pressable>
+
       {open && (
         <>
-          {row('Compartir mis notas del diario por defecto', 'notesShared')}
-          {row('Compartir mis resúmenes del ciclo por defecto', 'summariesShared')}
+          {hint && (
+            <View style={[styles.hintBox, { borderLeftColor: palette.period }]}>
+              <ThemedText type="small">{hint}</ThemedText>
+            </View>
+          )}
+
+          <View style={styles.modes}>
+            {PRIVACY_MODES.map(({ mode: m, label, icon }) => {
+              const active = mode === m;
+              return (
+                <Pressable
+                  key={m}
+                  onPress={() => setMode(m)}
+                  style={[
+                    styles.modeBtn,
+                    { backgroundColor: active ? palette.tint : palette.background },
+                  ]}>
+                  <Text style={styles.modeIcon}>{icon}</Text>
+                  <Text
+                    style={{
+                      color: active ? '#fff' : palette.text,
+                      fontWeight: '700',
+                      fontSize: 12,
+                      textAlign: 'center',
+                    }}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
           <ThemedText type="small" style={{ color: palette.textSecondary }}>
-            El candado 🔒/👁️ de cada nota o resumen concreto siempre manda sobre
-            estos ajustes. Los emojis de estado y el bienestar (qué sienta
-            bien/mal) se comparten siempre: son el idioma de cuidado de la pareja.
+            Afecta a tus notas y resúmenes. Los emojis de estado y el bienestar
+            (qué sienta bien/mal) se comparten siempre: son el idioma de cuidado
+            de la pareja. En «selección manual» decides con el candado 🔒/👁️ de
+            cada elemento.
           </ThemedText>
+
+          <Pressable
+            onPress={() => updateSettings({ roleChosen: false })}
+            hitSlop={8}
+            style={styles.switchUser}>
+            <ThemedText type="small" style={{ color: palette.tint, fontWeight: '700' }}>
+              👤 Cambiar de usuario
+            </ThemedText>
+          </Pressable>
         </>
       )}
     </ThemedView>
@@ -68,12 +104,28 @@ export function PrivacyCard() {
 
 const styles = StyleSheet.create({
   card: { borderRadius: 18, padding: Spacing.three, gap: Spacing.two },
-  h: { fontWeight: '700', fontSize: 15 },
-  row: {
+  headRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: Spacing.two,
+    flexWrap: 'wrap',
+    gap: Spacing.one,
   },
-  rowLabel: { flex: 1 },
+  h: { fontWeight: '700', fontSize: 15 },
+  hintBox: {
+    borderLeftWidth: 3,
+    paddingLeft: Spacing.two,
+    paddingVertical: Spacing.one,
+  },
+  modes: { flexDirection: 'row', gap: Spacing.two },
+  modeBtn: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.one,
+    alignItems: 'center',
+    gap: 2,
+  },
+  modeIcon: { fontSize: 18 },
+  switchUser: { marginTop: Spacing.one },
 });

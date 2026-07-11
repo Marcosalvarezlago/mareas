@@ -8,13 +8,21 @@
 - En shells del harness, Node no está en PATH: prefijar
   `$env:Path = "C:\Program Files\nodejs;$env:APPDATA\npm;$env:Path"`.
 - El usuario prueba la app con `Ver Mareas en el ordenador (web).bat`.
-- Reglas de producto: los roles visibles son **Luna 🌙** (vive el ciclo,
-  única que lo edita) y **Mar 🌊** (acompaña, solo lectura del ciclo); las
-  claves internas siguen siendo `her`/`him` — NO renombrarlas (hay datos
-  persistidos). Notas privadas por defecto; emojis de estado y bienestar
-  (sienta bien/mal) siempre compartidos; toda predicción lleva disclaimer
-  (no anticonceptivo / no consejo médico).
-- Emparejamiento de "días parecidos": por fase con doble coordenada
+- Reglas de producto: roles **Ella 🌸** (vive el ciclo, única que lo edita)
+  y **Él 🌊** (acompaña, solo lectura del ciclo). ACCESO POR CAPAS: puerta
+  "¿Quién eres?" al entrar (settings.roleChosen); cada persona ve su capa y
+  del otro solo lo compartido; "Cambiar de usuario" vive en Privacidad. Las
+  claves internas siguen siendo `her`/`him` — NO renombrarlas (datos
+  persistidos). Privacidad por persona con modo triple ('private' |
+  'public' | 'manual'); candados individuales solo aplican en manual —
+  en modo global, tocarlos abre la tarjeta de Privacidad proponiendo el
+  cambio. Emojis de estado y bienestar (sienta bien/mal) siempre
+  compartidos. Toda predicción lleva disclaimer (no anticonceptivo / no
+  consejo médico).
+- Emparejamiento de "días equivalentes": por fase con doble coordenada
   (adelante desde la regla; atrás hacia la siguiente en lútea; distancia a
-  ovulación en fértil). Único punto de acople: `similarDays()` en
-  `src/lib/cycle.ts` — sustituible por un modelo aprendido.
+  ovulación en fértil), bidireccional en el tiempo. Único punto de acople:
+  `similarDays()` en `src/lib/cycle.ts` — sustituible por un modelo
+  aprendido. Los resúmenes (manual + automático por separado) se guardan
+  bajo la coordenada rígida `F<n>`/`B<n>`/`O<n>` en `cycleNotes`, de modo
+  que valen para todos los días equivalentes de todos los ciclos.

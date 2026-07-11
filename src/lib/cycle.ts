@@ -8,7 +8,14 @@
 import type { ThemeColor } from '@/constants/theme';
 
 import { addDays, diffDays, formatShort, isBetween, type ISODate } from './dates';
-import { OTHER, PERSON_META, type DayEntry, type Person } from './types';
+import {
+  effectiveShared,
+  OTHER,
+  PERSON_META,
+  type DayEntry,
+  type Person,
+  type PrivacyMode,
+} from './types';
 
 /** Un día con sangrado separado >3 días del anterior inicia un ciclo nuevo. */
 const NEW_PERIOD_GAP = 3;
@@ -366,11 +373,12 @@ function hasContent(e: DayEntry): boolean {
 }
 
 /**
- * Días pasados equivalentes al objetivo en el lenguaje del ciclo: misma fase
- * y posición comparable (hacia adelante desde la regla, hacia atrás hasta la
- * siguiente, o distancia a la ovulación, según la fase). Este es el único
- * punto de acople del "emparejador": un modelo aprendido podrá sustituir a
- * esta regla en el futuro sin tocar nada más.
+ * Días equivalentes al objetivo en el lenguaje del ciclo — de CUALQUIER
+ * ciclo, anterior o posterior al día seleccionado: misma fase y posición
+ * comparable (hacia adelante desde la regla, hacia atrás hasta la siguiente,
+ * o distancia a la ovulación, según la fase). Este es el único punto de
+ * acople del "emparejador": un modelo aprendido podrá sustituirlo sin tocar
+ * nada más.
  */
 export function similarDays(
   targetDate: ISODate,
@@ -383,7 +391,7 @@ export function similarDays(
   if (!target) return [];
   const out: SimilarDay[] = [];
   for (const d of Object.keys(entries).sort()) {
-    if (d >= targetDate) continue; // solo pasado
+    if (d === targetDate) continue; // todos los equivalentes, menos él mismo
     const e = entries[d];
     if (!e || !hasContent(e)) continue;
     const c = coordOf(d, entries, windows, periodLen);
@@ -395,6 +403,43 @@ export function similarDays(
   return out.reverse().slice(0, max); // más reciente primero
 }
 
+/**
+ * Coordenada RÍGIDA del punto del ciclo, con la doble contabilidad: los
+ * resúmenes se guardan bajo esta clave y valen para todos los días
+ * equivalentes de todos los ciclos.
+ *  - "F4" → día 4 contando desde la regla (fases menstrual y folicular)
+ *  - "B8" → 8 días antes de la próxima regla (fase lútea, anclada al final)
+ *  - "O0" → día de ovulación estimado; "O-2" dos días antes (ventana fértil)
+ */
+export function cycleCoord(
+  date: ISODate,
+  entries: Record<ISODate, DayEntry>,
+  windows: CycleWindow[],
+  periodLen: number,
+): { key: string; context: string | null } | null {
+  const c = coordOf(date, entries, windows, periodLen);
+  if (!c) return null;
+  switch (c.phase) {
+    case 'menstrual':
+    case 'folicular':
+      return { key: `F${c.cdF}`, context: null };
+    case 'fertil':
+      if (c.dOvu == null) return { key: `F${c.cdF}`, context: null };
+      return {
+        key: `O${c.dOvu}`,
+        context:
+          c.dOvu === 0
+            ? 'día de ovulación estimado'
+            : c.dOvu < 0
+              ? `${-c.dOvu} día${c.dOvu === -1 ? '' : 's'} antes de la ovulación`
+              : `${c.dOvu} día${c.dOvu === 1 ? '' : 's'} tras la ovulación`,
+      };
+    case 'lutea':
+      if (c.cdB == null) return { key: `F${c.cdF}`, context: null };
+      return { key: `B${c.cdB}`, context: `a ${c.cdB} días de la próxima regla` };
+  }
+}
+
 /* --- etiquetas de bienestar ("me sentó bien/mal", separadas por comas) --- */
 
 function splitTags(s?: string): string[] {
@@ -404,8 +449,21 @@ function splitTags(s?: string): string[] {
     .filter(Boolean);
 }
 
-/** "manta ×3, paseo ×2, infusión" — frecuencia de etiquetas, top 4. */
-function tallyTags(values: (string | undefined)[]): string {
+/** "a, b y c" (o "e" ante i-/hi-), en castellano decente. */
+function joinES(items: string[]): string {
+  if (items.length === 0) return '';
+  if (items.length === 1) return items[0];
+  const last = items[items.length - 1];
+  const conj = /^h?i(?!e)/i.test(last.trim()) ? ' e ' : ' y ';
+  return items.slice(0, -1).join(', ') + conj + last;
+}
+
+/** [{disp:'manta',n:3},{disp:'paseo',n:1}] → "manta (×3) y paseo". */
+function proseList(pairs: { disp: string; n: number }[]): string {
+  return joinES(pairs.map(({ disp, n }) => (n > 1 ? `${disp} (×${n})` : disp)));
+}
+
+function tagPairs(values: (string | undefined)[]): { disp: string; n: number }[] {
   const counts = new Map<string, { disp: string; n: number }>();
   for (const v of values) {
     for (const tag of splitTags(v)) {
@@ -415,18 +473,26 @@ function tallyTags(values: (string | undefined)[]): string {
       else counts.set(key, { disp: tag, n: 1 });
     }
   }
-  return [...counts.values()]
-    .sort((a, b) => b.n - a.n)
-    .slice(0, 4)
-    .map(({ disp, n }) => (n > 1 ? `${disp} ×${n}` : disp))
-    .join(', ');
+  return [...counts.values()].sort((a, b) => b.n - a.n).slice(0, 4);
+}
+
+function moodPairs(matches: SimilarDay[], key: 'moodHer' | 'moodHim') {
+  const counts = new Map<string, number>();
+  for (const m of matches) {
+    const mood = m.entry[key];
+    if (mood) counts.set(mood, (counts.get(mood) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([disp, n]) => ({ disp, n }));
 }
 
 /**
- * Resumen AUTOMÁTICO y local del punto del ciclo: estadística sencilla sobre
- * los días parecidos (misma fase, posición comparable), incluido el bienestar
- * (qué sienta bien/mal). Solo usa mis notas y las del otro que estén
- * compartidas — la privacidad se respeta también aquí.
+ * Resumen AUTOMÁTICO y local del punto del ciclo, en prosa: estadística
+ * sencilla sobre los días equivalentes (misma fase, posición comparable,
+ * ventana adyacente), incluido el bienestar. Solo usa mis notas y las del
+ * otro que estén compartidas — la privacidad se respeta también aquí.
  */
 export function summarizeCyclePoint(
   targetDate: ISODate,
@@ -435,7 +501,7 @@ export function summarizeCyclePoint(
   windows: CycleWindow[],
   periodLen: number,
   me: Person,
-  otherNoteDefaultShared: boolean,
+  otherMode: PrivacyMode,
 ): string | null {
   const target = coordOf(targetDate, entries, windows, periodLen);
   const matches = similarDays(targetDate, entries, windows, periodLen);
@@ -444,7 +510,6 @@ export function summarizeCyclePoint(
   const meMeta = PERSON_META[me];
   const otherMeta = PERSON_META[OTHER[me]];
 
-  // ¿Cuántos ciclos distintos aportan datos?
   const idxOf = (d: ISODate) => {
     let idx = -1;
     for (let i = 0; i < starts.length; i++) if (starts[i] <= d) idx = i;
@@ -452,54 +517,53 @@ export function summarizeCyclePoint(
   };
   const cycles = new Set(matches.map((m) => idxOf(m.date))).size;
   const flowN = matches.filter((m) => (m.entry.flow ?? 0) > 0).length;
+  const n = matches.length;
 
-  const tallyMoods = (key: 'moodHer' | 'moodHim') => {
-    const counts = new Map<string, number>();
-    for (const m of matches) {
-      const mood = m.entry[key];
-      if (mood) counts.set(mood, (counts.get(mood) ?? 0) + 1);
+  const sentences: string[] = [];
+  sentences.push(
+    `Basado en ${n} día${n === 1 ? '' : 's'} equivalente${n === 1 ? '' : 's'} de ${cycles} ciclo${
+      cycles === 1 ? '' : 's'
+    } (${PHASE_INFO[target.phase].name.toLowerCase()}).`,
+  );
+
+  if (flowN === n) sentences.push('La regla estuvo presente en todos los registros.');
+  else if (flowN > 0) sentences.push(`Hubo regla en ${flowN} de ${n} registros.`);
+
+  for (const p of ['her', 'him'] as Person[]) {
+    const meta = PERSON_META[p];
+    const moods = moodPairs(matches, meta.moodKey);
+    if (moods.length) {
+      sentences.push(
+        `${meta.label} se sintió sobre todo ${proseList(moods)}.`,
+      );
     }
-    return [...counts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([mo, n]) => `${mo}×${n}`)
-      .join(' ');
-  };
+    const good = tagPairs(matches.map((m) => m.entry[meta.goodKey]));
+    const bad = tagPairs(matches.map((m) => m.entry[meta.badKey]));
+    if (good.length && bad.length) {
+      sentences.push(
+        `A ${meta.label} le sentó bien ${proseList(good)}; le sentó mal ${proseList(bad)}.`,
+      );
+    } else if (good.length) {
+      sentences.push(`A ${meta.label} le sentó bien ${proseList(good)}.`);
+    } else if (bad.length) {
+      sentences.push(`A ${meta.label} le sentó mal ${proseList(bad)}.`);
+    }
+  }
 
   const snippets: string[] = [];
   for (const m of matches.slice(0, 4)) {
     const mine = m.entry[meMeta.noteKey];
     const theirs = m.entry[otherMeta.noteKey];
-    const theirsShared = m.entry[otherMeta.sharedKey] ?? otherNoteDefaultShared;
+    const theirsShared = effectiveShared(otherMode, m.entry[otherMeta.sharedKey]);
     const pick = mine ?? (theirsShared ? theirs : undefined);
     if (pick) {
       const short = pick.length > 42 ? pick.slice(0, 42) + '…' : pick;
       snippets.push(`«${short}» (${formatShort(m.date)})`);
     }
   }
+  if (snippets.length) sentences.push(`De las notas: ${snippets.join(' · ')}.`);
 
-  const lines = [
-    `✨ Día ${target.cdF} · ${PHASE_INFO[target.phase].name} — ${matches.length} día${
-      matches.length === 1 ? '' : 's'
-    } parecido${matches.length === 1 ? '' : 's'} en ${cycles} ciclo${cycles === 1 ? '' : 's'}:`,
-  ];
-  if (flowN > 0) lines.push(`🩸 Regla en ${flowN} de ${matches.length}.`);
-
-  const herMoods = tallyMoods('moodHer');
-  const himMoods = tallyMoods('moodHim');
-  if (herMoods) lines.push(`${PERSON_META.her.emoji} ${PERSON_META.her.label}: ${herMoods}`);
-  if (himMoods) lines.push(`${PERSON_META.him.emoji} ${PERSON_META.him.label}: ${himMoods}`);
-
-  for (const p of ['her', 'him'] as Person[]) {
-    const meta = PERSON_META[p];
-    const good = tallyTags(matches.map((m) => m.entry[meta.goodKey]));
-    const bad = tallyTags(matches.map((m) => m.entry[meta.badKey]));
-    if (good) lines.push(`✅ A ${meta.label} le sienta bien: ${good}`);
-    if (bad) lines.push(`⚠️ A ${meta.label} le sienta mal: ${bad}`);
-  }
-
-  if (snippets.length) lines.push(`📝 ${snippets.join(' · ')}`);
-  return lines.join('\n');
+  return sentences.join('\n');
 }
 
 /* ------------------------------------------------------------------ */
