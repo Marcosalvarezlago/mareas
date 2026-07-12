@@ -1,5 +1,8 @@
 # Mareas — notas para agentes
 
+- Proyecto migrado a `C:\Users\marco\Documents\Codex\Proyectos\mareas` y gestionado con Codex.
+- No introducir claves, activar servicios online ni hacer llamadas reales a Anthropic sin autorización explícita del usuario. La IA debe seguir siendo opcional y el fallback local debe funcionar siempre.
+
 - **SDK de Expo: 56** (react-native 0.85). NO subir a SDK 57 hasta que el
   Expo Go de las tiendas lo soporte (el del móvil del usuario va por 56).
 - Docs correctas para esta versión: https://docs.expo.dev/versions/v56.0.0/
