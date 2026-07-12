@@ -39,6 +39,7 @@
       "expo-web-browser"
     ],
     "experiments": {
+      "baseUrl": "/mareas",
       "typedRoutes": true,
       "reactCompiler": true
     }
