@@ -22,7 +22,7 @@ import { useApp } from '@/lib/store';
 import {
   effectiveShared,
   FLOW_LABELS,
-  MOODS,
+  MOOD_OPTIONS,
   OTHER,
   PERSON_META,
   PRIVACY_MODES,
@@ -310,17 +310,27 @@ export function DayPanel({ date, onRequestPrivacy }: Props) {
                 {meMeta.emoji} ¿Cómo estás?
               </ThemedText>
               <View style={styles.moodRow}>
-                {MOODS.map((m) => {
-                  const sel = myMood === m;
+                {MOOD_OPTIONS.map(({ emoji, label }) => {
+                  const sel = myMood === emoji;
                   return (
                     <Pressable
-                      key={m}
-                      onPress={() => patchEntry({ [meMeta.moodKey]: sel ? undefined : m })}
+                      key={emoji}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Estado: ${label}`}
+                      accessibilityState={{ selected: sel }}
+                      onPress={() =>
+                        patchEntry({ [meMeta.moodKey]: sel ? undefined : emoji })
+                      }
                       style={[
                         styles.moodBtn,
                         { backgroundColor: sel ? palette.tint : palette.background },
                       ]}>
-                      <Text style={{ fontSize: 20 }}>{m}</Text>
+                      <Text style={styles.moodEmoji}>{emoji}</Text>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.moodLabel, { color: sel ? '#fff' : palette.textSecondary }]}>
+                        {label}
+                      </Text>
                     </Pressable>
                   );
                 })}
@@ -593,12 +603,16 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999 },
   moodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   moodBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 999,
+    width: 68,
+    minHeight: 58,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 5,
   },
+  moodEmoji: { fontSize: 21 },
+  moodLabel: { fontSize: 9, fontWeight: '600', marginTop: 1 },
   wellRow: {
     flexDirection: 'row',
     alignItems: 'center',

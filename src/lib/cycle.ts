@@ -246,7 +246,7 @@ export const PHASE_INFO: Record<
       '(cítricos, pimiento) para absorberlo mejor. Chocolate negro y plátano aportan magnesio. ' +
       'Reducir alcohol, café y ultraprocesados suele aliviar la inflamación.',
     care:
-      'Calor en el abdomen, dormir más y movimiento suave (paseo, estiramientos, yoga). ' +
+      'Calor en el abdomen, dormir más y reservar tiempo para cuidarse sin exigencias. ' +
       'Si el dolor te tumba cada mes o el sangrado es muy abundante, no lo normalices: ' +
       'coméntalo con tu médico.',
   },
@@ -265,8 +265,8 @@ export const PHASE_INFO: Record<
       'Proteína y verdura fresca acompañan la reconstrucción del endometrio; los fermentados ' +
       '(yogur, kéfir) ayudan a metabolizar el estrógeno.',
     care:
-      'El mejor momento para entrenamientos exigentes: fuerza, series, retos nuevos — la ' +
-      'recuperación está en su punto óptimo. Buena fase para citas médicas o decisiones difíciles.',
+      'Para muchas personas es un buen momento para planes que requieren energía, concentración ' +
+      'o iniciativa. Buena fase para citas médicas o decisiones difíciles.',
   },
   fertil: {
     name: 'Ventana fértil',
@@ -291,19 +291,19 @@ export const PHASE_INFO: Record<
     body:
       'El folículo vacío se convierte en cuerpo lúteo y fabrica progesterona: sube ~0,3 °C la ' +
       'temperatura, se ralentiza la digestión (hinchazón) y se sensibiliza el pecho. Si no hay ' +
-      'embarazo, la progesterona cae en picado y ese desplome dispara la regla — y el SPM final.',
+      'embarazo, la progesterona cae y ese cambio puede anticipar síntomas premenstruales.',
     mind:
       'La progesterona es sedante: más sueño, más hambre, menos paciencia. Los últimos 3-5 días ' +
-      'pueden traer SPM: irritabilidad, ánimo frágil, antojos. Saberlo y nombrarlo desactiva la ' +
-      'mitad de las discusiones.',
+      'pueden traer síndrome premenstrual: irritabilidad, ánimo frágil o antojos. Saberlo y ' +
+      'nombrarlo ayuda a entender lo que ocurre y puede evitar algunas discusiones.',
     diet:
       'El gasto calórico sube ~100-300 kcal/día: el hambre extra es real. Carbohidratos complejos ' +
-      'y proteína estabilizan el ánimo; magnesio (chocolate negro, frutos secos) y calcio alivian ' +
-      'el SPM. Menos sal (hinchazón), café y alcohol (sueño e irritabilidad).',
+      'y proteína pueden ayudar a mantener la energía; algunas personas encuentran alivio con ' +
+      'alimentos ricos en magnesio y calcio. Reducir sal, café o alcohol puede sentar bien.',
     care:
-      'Bajar el listón deportivo sin parar del todo: fuerza suave, caminar, dormir media hora más. ' +
-      'Planificar menos compromisos en los últimos días. Si el SPM rompe la vida cada mes, tiene ' +
-      'nombre (TDPM) y tratamiento: consulta médica.',
+      'Bajar el ritmo, dormir algo más y planificar menos compromisos en los últimos días. Si los ' +
+      'síntomas premenstruales interfieren seriamente con la vida cotidiana cada mes, podría ' +
+      'tratarse de un trastorno disfórico premenstrual: conviene consultarlo con un profesional.',
   },
 };
 

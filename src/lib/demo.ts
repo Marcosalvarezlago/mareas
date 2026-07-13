@@ -43,7 +43,7 @@ const NOTES_HER: Record<DemoPhase, readonly string[]> = {
     'con energía, día muy productivo',
     'quedamos con amigas, me reí muchísimo',
     'me apetece empezar cosas nuevas',
-    'entrené fuerte y me sentí genial',
+    'día intenso y aun así me sentí genial',
     'día ligero, la cabeza clara',
     'ordené medio piso, imparable',
     'buen humor porque sí, qué gusto',
@@ -81,16 +81,16 @@ const NOTES_HIM = [
   'la vi radiante hoy',
   'discutimos una tontería, arreglado con abrazo',
   'le preparé la manta y una infusión',
-  'entrenamos juntos, muy divertido',
+  'hicimos un plan juntos, muy divertido',
   'noche de risas con amigos',
   'me pidió espacio, se lo di',
 ] as const;
 
 const GOOD_HER: Record<DemoPhase, readonly string[]> = {
   menstrual: ['manta eléctrica', 'infusión de jengibre', 'sofá y peli', 'calor local', 'dormir siesta'],
-  folicular: ['correr', 'planes con amigas', 'comer ligero', 'madrugar'],
-  fertil: ['salir a bailar', 'cita improvisada', 'entrenar fuerte'],
-  lutea: ['chocolate negro', 'paseo suave', 'baño caliente', 'dormir 8 horas', 'yoga suave'],
+  folicular: ['planes con amigas', 'comer ligero', 'madrugar', 'ordenar ideas'],
+  fertil: ['salir a bailar', 'cita improvisada', 'plan espontáneo'],
+  lutea: ['chocolate negro', 'paseo suave', 'baño caliente', 'dormir 8 horas', 'tarde tranquila'],
 };
 
 const BAD_HER: Record<DemoPhase, readonly string[]> = {
@@ -100,7 +100,7 @@ const BAD_HER: Record<DemoPhase, readonly string[]> = {
   lutea: ['café', 'discusiones tontas', 'azúcar de más', 'trasnochar', 'sal de más'],
 };
 
-const GOOD_HIM = ['hacer deporte', 'cocinar juntos', 'siesta corta', 'paseo'] as const;
+const GOOD_HIM = ['cocinar juntos', 'siesta corta', 'paseo', 'tarde tranquila'] as const;
 const BAD_HIM = ['trasnochar', 'discutir por tonterías', 'demasiado café'] as const;
 
 /** Resúmenes de punto de ciclo ya escritos (para ver la capa compartida). */

@@ -18,7 +18,7 @@ import { usePalette } from '@/hooks/use-palette';
 import { cycleDayOf } from '@/lib/cycle';
 import { formatLong, type ISODate } from '@/lib/dates';
 import { useApp } from '@/lib/store';
-import { FLOW_LABELS, MOODS, type Flow } from '@/lib/types';
+import { FLOW_LABELS, MOOD_OPTIONS, type Flow } from '@/lib/types';
 
 interface Props {
   date: ISODate | null;
@@ -43,17 +43,25 @@ export function DaySheet({ date, onClose }: Props) {
 
   const moodRow = (who: 'moodHer' | 'moodHim') => (
     <View style={styles.moodRow}>
-      {MOODS.map((m) => {
-        const selected = entry?.[who] === m;
+      {MOOD_OPTIONS.map(({ emoji, label }) => {
+        const selected = entry?.[who] === emoji;
         return (
           <Pressable
-            key={m}
-            onPress={() => setMood(who, m)}
+            key={emoji}
+            accessibilityRole="button"
+            accessibilityLabel={`Estado: ${label}`}
+            accessibilityState={{ selected }}
+            onPress={() => setMood(who, emoji)}
             style={[
               styles.moodBtn,
               { backgroundColor: selected ? palette.tint : palette.backgroundElement },
             ]}>
-            <Text style={styles.moodEmoji}>{m}</Text>
+            <Text style={styles.moodEmoji}>{emoji}</Text>
+            <Text
+              numberOfLines={1}
+              style={[styles.moodLabel, { color: selected ? '#fff' : palette.textSecondary }]}>
+              {label}
+            </Text>
           </Pressable>
         );
       })}
@@ -185,13 +193,16 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   moodBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 999,
+    width: 68,
+    minHeight: 58,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 5,
   },
-  moodEmoji: { fontSize: 22 },
+  moodEmoji: { fontSize: 21 },
+  moodLabel: { fontSize: 9, fontWeight: '600', marginTop: 1 },
   note: {
     borderRadius: 12,
     padding: Spacing.three,
