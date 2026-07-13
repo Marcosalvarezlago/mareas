@@ -216,3 +216,10 @@ Para una pareja real y dos dispositivos, la opción más equilibrada es:
 La alternativa de máxima privacidad es seguir completamente local y añadir copias cifradas
 manuales. Esa alternativa no puede mantener memoria automática entre incógnito y otros
 dispositivos.
+
+## Decisión adoptada
+
+El 13 de julio de 2026 se aprobó la opción local-first con Supabase, enlace mágico,
+roles persistentes, políticas por fila y proyecciones privadas/compartidas separadas.
+La redacción con ChatGPT se aplazó: el resumen seguirá siendo estadístico y local hasta
+que se autorice un presupuesto y una función de servidor con límites de gasto.

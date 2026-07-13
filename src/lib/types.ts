@@ -153,11 +153,6 @@ export interface Settings {
    * tiene su propio tope (la regla es más rígida) y NUNCA se cruzan fases.
    */
   matchRadius: number;
-  /**
-   * Clave de API de Anthropic del usuario para el resumen con IA. Vive SOLO
-   * en este dispositivo (AsyncStorage); si está vacía se usa la estadística.
-   */
-  aiApiKey: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -167,5 +162,4 @@ export const DEFAULT_SETTINGS: Settings = {
   roleChosen: false,
   privacy: { her: 'manual', him: 'manual' },
   matchRadius: 2,
-  aiApiKey: '',
 };

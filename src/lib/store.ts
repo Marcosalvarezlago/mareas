@@ -15,7 +15,7 @@ import {
   type Settings,
 } from './types';
 
-interface AppState {
+export interface AppSnapshot {
   entries: Record<ISODate, DayEntry>;
   /**
    * Resúmenes por PUNTO del ciclo. Clave = coordenada fase-consciente
@@ -24,6 +24,9 @@ interface AppState {
    */
   cycleNotes: Record<string, CycleDayNote>;
   settings: Settings;
+}
+
+interface AppState extends AppSnapshot {
   updateDay: (date: ISODate, patch: Partial<Omit<DayEntry, 'date'>>) => void;
   updateCycleNote: (coordKey: string, patch: Partial<CycleDayNote>) => void;
   updateSettings: (patch: Partial<Settings>) => void;
@@ -37,6 +40,13 @@ interface AppState {
 
 /** Migra formatos antiguos guardados: claves numéricas y privacidad booleana. */
 function migrate(p: Partial<AppState>): Partial<AppState> {
+  if (p.settings && 'aiApiKey' in p.settings) {
+    // Versiones anteriores guardaban una clave de Anthropic en el navegador.
+    // La integración cliente se retiró: eliminamos también el secreto legado.
+    const settings = { ...p.settings } as Partial<Settings> & { aiApiKey?: string };
+    delete settings.aiApiKey;
+    p = { ...p, settings: settings as Settings };
+  }
   if (p.cycleNotes) {
     const notes: Record<string, CycleDayNote> = {};
     for (const [k, v] of Object.entries(p.cycleNotes)) {
@@ -87,7 +97,9 @@ export const useApp = create<AppState>()(
     }),
     {
       name: 'mareas-v1',
+      version: 2,
       storage: createJSONStorage(() => AsyncStorage),
+      migrate: (persisted) => migrate((persisted ?? {}) as Partial<AppState>) as AppState,
       merge: (persisted, current) => {
         const p = migrate((persisted ?? {}) as Partial<AppState>);
         return {

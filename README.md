@@ -1,56 +1,92 @@
-# Welcome to your Expo app 👋
+# Mareas 🌊
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Mareas es una aplicación íntima para dos personas. Convierte el ciclo menstrual,
+el estado emocional y el bienestar cotidiano en contexto compartido y cuidado,
+sin convertir las predicciones en diagnósticos ni exponer notas privadas.
 
-## Get started
+La aplicación usa Expo SDK 56 y funciona en web, Android e iOS. La versión web
+pública se despliega automáticamente desde `main` mediante GitHub Pages.
 
-1. Install dependencies
+## Principios de producto
 
-   ```bash
-   npm install
-   ```
+- Maya (`her`) vive el ciclo y es la única persona que puede modificarlo.
+- Marcos (`him`) acompaña y tiene acceso de lectura al ciclo.
+- Cada persona edita únicamente su estado, bienestar, notas y resúmenes.
+- El estado y el bienestar se comparten; las notas y resúmenes siguen el modo
+  privado, compartido o selección manual de su autora o autor.
+- Las predicciones son estadísticas: no son un método anticonceptivo ni consejo
+  médico.
+- El resumen automático funciona localmente y no envía registros a una IA.
 
-2. Start the app
+## Desarrollo local
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```powershell
+npm install
+npx expo start --web
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Comprobaciones mínimas antes de publicar:
 
-### Other setup steps
+```powershell
+npx tsc --noEmit
+npx expo export --platform web
+git diff --check
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Persistencia y sincronización
 
-## Learn more
+Sin configurar ningún servicio, Zustand y AsyncStorage conservan los datos solo
+en el navegador o dispositivo. Una ventana de incógnito tiene otro almacenamiento
+y, al cerrarse, lo destruye; por eso no puede recuperar datos automáticamente.
 
-To learn more about developing your project with Expo, look at the following resources:
+La sincronización opcional usa Supabase:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+1. acceso mediante enlace mágico por correo, sin contraseña;
+2. espacio de pareja con un código aleatorio cuyo servidor guarda solo el hash;
+3. copia privada separada para cada persona;
+4. proyección compartida que contiene únicamente campos autorizados;
+5. copia del ciclo compartida para lectura y modificable solo por Maya;
+6. políticas de seguridad por fila en PostgreSQL y actualizaciones en tiempo real;
+7. caché local para seguir funcionando cuando no haya red.
 
-## Join the community
+El diseño completo y sus límites están en
+[`docs/sync-architecture.md`](docs/sync-architecture.md).
 
-Join our community of developers creating universal apps.
+### Activar Supabase
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1. Crear un proyecto gratuito en Supabase, preferentemente en una región europea.
+2. Ejecutar en el editor SQL la migración de `supabase/migrations`.
+3. Copiar `.env.example` como `.env` y rellenar la URL y la clave publicable.
+4. En Auth > URL Configuration añadir:
+   `https://marcosalvarezlago.github.io/mareas/`.
+5. En GitHub crear los secretos de Actions
+   `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+6. Exponerlos al paso `Export web app` del workflow antes del despliegue.
+
+La clave publicable no es un secreto y está diseñada para cliente; nunca debe
+usarse la clave secreta o `service_role` en Expo. La protección depende de que
+las políticas RLS de la migración estén activas.
+
+Si las variables no existen o son inválidas, la aplicación continúa en modo
+local. Ningún dato se sube por el mero hecho de instalar las dependencias.
+
+## Inteligencia artificial y coste
+
+La integración cliente de Anthropic fue eliminada. Mareas utiliza actualmente un
+resumen estadístico local, gratuito y privado.
+
+La redacción opcional con ChatGPT queda para una fase posterior. Requerirá una
+función de servidor, una clave de OpenAI almacenada como secreto, minimización de
+los campos enviados, consentimiento explícito y un límite de gasto. No se usará
+la promoción de tokens gratuitos ligada a compartir entradas y salidas con el
+proveedor.
+
+## Estructura relevante
+
+- `src/lib/cycle.ts`: predicción, fases, días equivalentes y resumen local.
+- `src/lib/store.ts`: estado local persistente y migraciones.
+- `src/lib/cloud-payload.ts`: separación y validación de datos privados/compartidos.
+- `src/providers/cloud-provider.tsx`: autenticación, sincronización y tiempo real.
+- `src/components/sync-card.tsx`: acceso y emparejamiento.
+- `supabase/migrations`: esquema, funciones seguras y políticas RLS.
+- `docs/competitive-research.md`: estudio competitivo y hoja de ruta.
