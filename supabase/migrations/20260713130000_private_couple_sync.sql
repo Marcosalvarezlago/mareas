@@ -256,14 +256,18 @@ begin
   if target is null then
     raise exception 'invalid_invite_code';
   end if;
-  if (select count(*) from public.couple_members where couple_id = target) >= 2 then
+  if (
+    select count(*)
+    from public.couple_members as member
+    where member.couple_id = target
+  ) >= 2 then
     raise exception 'couple_full';
   end if;
 
   assigned_role := case
     when exists (
-      select 1 from public.couple_members
-      where couple_id = target and role = 'her'
+      select 1 from public.couple_members as member
+      where member.couple_id = target and member.role = 'her'
     ) then 'him'
     else 'her'
   end;

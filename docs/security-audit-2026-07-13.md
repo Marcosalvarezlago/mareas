@@ -29,9 +29,17 @@ Fecha: 13 de julio de 2026. Alcance: rama `agent/product-evolution`.
 - `npm run test:cloud`: 20 comprobaciones de privacidad superadas.
 - `npx tsc --noEmit`: correcto.
 - `npx expo export --platform web`: cuatro rutas estáticas exportadas.
+- `npx supabase migration list --linked`: migraciones inicial y correctiva
+  registradas en el proyecto remoto.
+- `npx supabase db lint --linked --schema public --level warning --fail-on
+  error`: sin errores de esquema tras corregir la referencia ambigua de
+  `join_couple`.
+- `npx supabase config push`: URL pública, redirecciones y valores seguros de
+  Auth aplicados; funciones de almacenamiento de pago desactivadas.
 - `git diff --check`: correcto.
-- Rastreo de referencias antiguas en código y bundle: sin SDK, modelos o claves
-  de Anthropic/Claude.
+- Rastreo del bundle: contiene solo la URL y clave publicable previstas, sin
+  patrones de claves secretas, tokens personales ni referencias a
+  Anthropic/Claude.
 
 ## Dependencias
 
@@ -43,9 +51,10 @@ de SDK 56. No se aplicó. Debe revisarse cuando Expo publique una actualización
 
 ## Límites conocidos
 
-1. **Backend todavía no activado.** Falta crear el proyecto del propietario,
-   ejecutar la migración y probar RLS con dos cuentas reales. Hasta entonces la
-   aplicación continúa local y el problema de incógnito no está resuelto en
+1. **Validación real con dos cuentas pendiente.** El proyecto remoto está
+   activo, las migraciones y Auth están desplegados y el lint de PostgreSQL no
+   encuentra errores. Aún falta recorrer alta, emparejamiento, RLS, Realtime e
+   incógnito con las cuentas reales de Maya y Marcos antes de fusionar a
    producción.
 2. **No es cifrado de extremo a extremo.** Supabase cifra transporte y disco y
    RLS separa cuentas, pero el operador del proyecto puede acceder a PostgreSQL.
