@@ -5,6 +5,10 @@ export type Flow = 0 | 1 | 2 | 3;
 
 export const FLOW_LABELS = ['Nada', 'Ligero', 'Medio', 'Fuerte'] as const;
 
+export type PainLevel = 0 | 1 | 2 | 3;
+
+export const PAIN_LABELS = ['Sin dolor', 'Leve', 'Moderado', 'Intenso'] as const;
+
 /**
  * Estados emocionales disponibles en el diario. Las etiquetas evitan que el
  * significado dependa solo de interpretar un emoji y sirven como texto
@@ -29,6 +33,19 @@ export const MOOD_OPTIONS = [
 
 export const MOODS = MOOD_OPTIONS.map(({ emoji }) => emoji);
 
+/** Los estados se persisten juntos para conservar compatibilidad con el campo legado. */
+export function moodSelected(value: string | undefined, emoji: string): boolean {
+  return value?.includes(emoji) ?? false;
+}
+
+export function toggleMood(value: string | undefined, emoji: string): string | undefined {
+  const selected: string[] = MOODS.filter((mood) => moodSelected(value, mood));
+  const next = selected.includes(emoji)
+    ? selected.filter((mood) => mood !== emoji)
+    : [...selected, emoji];
+  return next.length ? next.join('') : undefined;
+}
+
 /**
  * Los dos roles de la pareja. OJO: 'her'/'him' son CLAVES DE ALMACENAMIENTO
  * (no renombrar: hay datos persistidos). Cada persona accede solo a SU capa:
@@ -45,6 +62,8 @@ export type Person = 'her' | 'him';
 export interface DayEntry {
   date: ISODate;
   flow?: Flow;
+  /** Dolor menstrual de Maya; se muestra únicamente cuando hay sangrado. */
+  painHer?: PainLevel;
   moodHer?: string;
   moodHim?: string;
   noteHer?: string;

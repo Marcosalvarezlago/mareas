@@ -22,12 +22,16 @@ import {
   effectiveShared,
   FLOW_LABELS,
   MOOD_OPTIONS,
+  PAIN_LABELS,
+  moodSelected,
+  toggleMood,
   OTHER,
   PERSON_META,
   PRIVACY_MODES,
   type CycleDayNote,
   type DayEntry,
   type Flow,
+  type PainLevel,
 } from '@/lib/types';
 
 interface Props {
@@ -115,7 +119,10 @@ export function DayPanel({ date, onRequestPrivacy }: Props) {
 
   // --- helpers de escritura ---
   const patchEntry = (p: Partial<DayEntry>) => updateDay(date, p);
-  const setFlow = (f: Flow) => patchEntry({ flow: (entry?.flow ?? 0) === f ? 0 : f });
+  const setFlow = (f: Flow) => {
+    const flow = (entry?.flow ?? 0) === f ? 0 : f;
+    patchEntry({ flow, ...(flow === 0 ? { painHer: undefined } : {}) });
+  };
 
   const generateSummary = () => {
     if (!coord || !dp) return;
@@ -281,12 +288,45 @@ export function DayPanel({ date, onRequestPrivacy }: Props) {
                 <ThemedText>{FLOW_LABELS[entry?.flow ?? 0]}</ThemedText>
               )}
 
+              {(entry?.flow ?? 0) > 0 ? (
+                <>
+                  <ThemedText type="small" style={[styles.sub, { color: palette.textSecondary }]}>
+                    🌡️ Dolor menstrual{me === 'him' ? ` · lo registra ${maya.label}` : ''}
+                  </ThemedText>
+                  {me === 'her' ? (
+                    <View style={styles.chipRow}>
+                      {PAIN_LABELS.map((label, i) => {
+                        const sel = (entry?.painHer ?? 0) === i;
+                        return (
+                          <Pressable
+                            key={label}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Dolor: ${label}`}
+                            accessibilityState={{ selected: sel }}
+                            onPress={() => patchEntry({ painHer: i as PainLevel })}
+                            style={[
+                              styles.chip,
+                              { backgroundColor: sel ? palette.period : palette.background },
+                            ]}>
+                            <Text style={{ color: sel ? '#fff' : palette.text, fontWeight: '600' }}>
+                              {label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : (
+                    <ThemedText>{PAIN_LABELS[entry?.painHer ?? 0]}</ThemedText>
+                  )}
+                </>
+              ) : null}
+
               <ThemedText type="small" style={[styles.sub, { color: palette.textSecondary }]}>
-                {meMeta.emoji} ¿Cómo estás?
+                {meMeta.emoji} ¿Cómo estás? · puedes elegir varios
               </ThemedText>
               <View style={styles.moodRow}>
                 {MOOD_OPTIONS.map(({ emoji, label }) => {
-                  const sel = myMood === emoji;
+                  const sel = moodSelected(myMood, emoji);
                   return (
                     <Pressable
                       key={emoji}
@@ -294,7 +334,7 @@ export function DayPanel({ date, onRequestPrivacy }: Props) {
                       accessibilityLabel={`Estado: ${label}`}
                       accessibilityState={{ selected: sel }}
                       onPress={() =>
-                        patchEntry({ [meMeta.moodKey]: sel ? undefined : emoji })
+                        patchEntry({ [meMeta.moodKey]: toggleMood(myMood, emoji) })
                       }
                       style={[
                         styles.moodBtn,

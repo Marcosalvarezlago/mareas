@@ -28,7 +28,8 @@ const base: AppSnapshot = {
     [date]: {
       date,
       flow: 2,
-      moodHer: '😊',
+      painHer: 2,
+      moodHer: '😊🥺',
       noteHer: 'Nota privada de Maya',
       noteHerShared: true,
       goodHer: 'calor',
@@ -61,7 +62,8 @@ assert.equal(mayaPrivate.entries[date].flow, undefined);
 assert.equal(mayaPrivate.cycleNotes.F4.summaryHim, undefined);
 
 const mayaSharedPrivate = buildSharedPayload(base, 'her');
-assert.equal(mayaSharedPrivate.entries[date].moodHer, '😊');
+assert.equal(mayaSharedPrivate.entries[date].moodHer, '😊🥺');
+assert.equal(mayaSharedPrivate.entries[date].painHer, 2);
 assert.equal(mayaSharedPrivate.entries[date].goodHer, 'calor');
 assert.equal(mayaSharedPrivate.entries[date].noteHer, undefined);
 assert.equal(mayaSharedPrivate.cycleNotes.F4, undefined);
@@ -104,6 +106,7 @@ const marcosShared = parseSharedPayload({
 });
 if (!marcosShared) throw new Error('La proyección compartida válida fue rechazada.');
 assert.equal(marcosShared.entries[date].moodHer, undefined);
+assert.equal(marcosShared.entries[date].painHer, undefined);
 assert.equal(marcosShared.cycleNotes.F4.summaryHer, undefined);
 
 const restored = restoreCloudSnapshot(
