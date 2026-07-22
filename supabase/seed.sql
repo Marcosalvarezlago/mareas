@@ -1,0 +1,2 @@
+-- Mareas no necesita datos de semilla. Las cuentas y el espacio de pareja se
+-- crean únicamente mediante los flujos autenticados de la aplicación.

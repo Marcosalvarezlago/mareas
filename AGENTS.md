@@ -1,7 +1,10 @@
 # Mareas — notas para agentes
 
 - Proyecto migrado a `C:\Users\marco\Documents\Codex\Proyectos\mareas` y gestionado con Codex.
-- No introducir claves, activar servicios online ni hacer llamadas reales a Anthropic sin autorización explícita del usuario. La IA debe seguir siendo opcional y el fallback local debe funcionar siempre.
+- No introducir secretos en cliente o git ni activar servicios online sin autorización
+  explícita. El usuario aprobó la arquitectura Supabase de la opción A el 13-07-2026,
+  pero la redacción con OpenAI queda aplazada: no hacer llamadas reales a ningún
+  proveedor de IA. El resumen local debe funcionar siempre.
 
 - **SDK de Expo: 56** (react-native 0.85). NO subir a SDK 57 hasta que el
   Expo Go de las tiendas lo soporte (el del móvil del usuario va por 56).
@@ -12,9 +15,10 @@
   `$env:Path = "C:\Program Files\nodejs;$env:APPDATA\npm;$env:Path"`.
 - El usuario prueba la app con `Ver Mareas en el ordenador (web).bat`.
 - Reglas de producto: roles **Maya 🌸** (vive el ciclo, única que lo edita)
-  y **Marcos 🌊** (acompaña, solo lectura del ciclo). ACCESO POR CAPAS: puerta
-  "¿Quién eres?" al entrar (settings.roleChosen); cada persona ve su capa y
-  del otro solo lo compartido; "Cambiar de usuario" vive en Privacidad. Las
+  y **Marcos 🌊** (acompaña, solo lectura del ciclo). ACCESO POR CAPAS: sin
+  cuenta se mantiene la puerta "¿Quién eres?" (`settings.roleChosen`); con
+  sincronización, el rol queda fijado por `couple_members` y solo se cambia
+  cerrando sesión. Cada persona ve su capa y del otro solo lo compartido. Las
   claves internas siguen siendo `her`/`him` — NO renombrarlas (datos
   persistidos). Privacidad por persona con modo triple ('private' |
   'public' | 'manual'); candados individuales solo aplican en manual —
@@ -30,8 +34,20 @@
   un modelo aprendido. Los resúmenes (manual + automático por separado, y
   SOLO de uno mismo, en segunda persona) se guardan bajo la coordenada
   rígida `F<n>`/`B<n>`/`O<n>` en `cycleNotes`.
-- Resumen con IA: `src/lib/ai.ts` usa `@anthropic-ai/sdk` con
-  `dangerouslyAllowBrowser` y la clave DEL USUARIO (`settings.aiApiKey`,
-  solo en su dispositivo — JAMÁS en código ni git). Modelo
-  `claude-opus-4-8`. Sin clave → fallback estadístico
-  (`summarizeCyclePoint`). No hacer llamadas reales en pruebas.
+- Sincronización opcional: cliente en `src/lib/supabase.ts`, separación de
+  proyecciones en `src/lib/cloud-payload.ts`, orquestación en
+  `src/providers/cloud-provider.tsx` y esquema/RLS en `supabase/migrations`.
+  `private_snapshots` solo es legible por su persona; `shared_snapshots` nunca
+  debe recibir campos no compartidos; `cycle_snapshots` solo lo escribe `her`.
+  Si faltan variables `EXPO_PUBLIC_SUPABASE_*`, la app debe seguir local y sin
+  errores. Nunca usar una secret/service-role key en Expo.
+- Desde la prueba real iniciada el 22-07-2026 no existen datos demo ni altas
+  abiertas: sólo acceden las dos cuentas existentes. La migración
+  `20260722120000_start_real_memory.sql` limpia las instantáneas de prueba una
+  única vez y `snapshot_history` conserva las revisiones anteriores. No borrar,
+  truncar ni reescribir datos reales o su historial en cambios futuros; usar
+  migraciones compatibles y preparar una vía de recuperación.
+- Resumen automático: exclusivamente estadístico y local mediante
+  `summarizeCyclePoint`. Anthropic fue retirado. La futura redacción con
+  ChatGPT solo podrá vivir en una función de servidor, con límite de coste,
+  minimización de datos y consentimiento; nunca con una clave en el navegador.

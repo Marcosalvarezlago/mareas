@@ -7,7 +7,6 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useCycle } from '@/hooks/use-cycle';
 import { usePalette } from '@/hooks/use-palette';
-import { aiCycleSummary } from '@/lib/ai';
 import {
   cycleCoord,
   dayPhase,
@@ -22,7 +21,7 @@ import { useApp } from '@/lib/store';
 import {
   effectiveShared,
   FLOW_LABELS,
-  MOODS,
+  MOOD_OPTIONS,
   OTHER,
   PERSON_META,
   PRIVACY_MODES,
@@ -51,7 +50,6 @@ export function DayPanel({ date, onRequestPrivacy }: Props) {
   const me = useApp((s) => s.settings.perspective);
   const privacy = useApp((s) => s.settings.privacy);
   const radius = useApp((s) => s.settings.matchRadius);
-  const aiApiKey = useApp((s) => s.settings.aiApiKey);
   const { starts, stats, windows, periodLen } = useCycle();
 
   // Secciones plegables (compactas por defecto) y estado efímero de UI.
@@ -61,8 +59,7 @@ export function DayPanel({ date, onRequestPrivacy }: Props) {
   const [showAllMems, setShowAllMems] = useState(false);
   const [expandedMem, setExpandedMem] = useState<ISODate | null>(null);
   const [infoPhase, setInfoPhase] = useState<Phase | null>(null);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiNote, setAiNote] = useState<string | null>(null);
+  const [summaryNote, setSummaryNote] = useState<string | null>(null);
 
   const today = todayISO();
   const isFuture = date > today;
@@ -120,34 +117,12 @@ export function DayPanel({ date, onRequestPrivacy }: Props) {
   const patchEntry = (p: Partial<DayEntry>) => updateDay(date, p);
   const setFlow = (f: Flow) => patchEntry({ flow: (entry?.flow ?? 0) === f ? 0 : f });
 
-  const generateSummary = async () => {
+  const generateSummary = () => {
     if (!coord || !dp) return;
-    setAiNote(null);
-    const key = aiApiKey.trim();
-    if (key) {
-      setAiBusy(true);
-      try {
-        const text = await aiCycleSummary({
-          apiKey: key,
-          me,
-          cycleDay: dp.cycleDay,
-          phase: dp.phase,
-          context: coord.context,
-          matches: memories,
-          manualSummary: mySummary || undefined,
-        });
-        updateCycleNote(coord.key, { [meMeta.autoSummaryKey]: text });
-        setAiBusy(false);
-        return;
-      } catch (err) {
-        setAiBusy(false);
-        const msg = err instanceof Error ? err.message : 'Error desconocido.';
-        setAiNote(`⚠️ IA no disponible (${msg}) — usado el resumen estadístico.`);
-      }
-    }
+    setSummaryNote(null);
     const text = summarizeCyclePoint(date, entries, starts, windows, periodLen, me, radius);
     if (text) updateCycleNote(coord.key, { [meMeta.autoSummaryKey]: text });
-    else setAiNote('Sin registros propios en los días equivalentes todavía.');
+    else setSummaryNote('Sin registros propios en los días equivalentes todavía.');
   };
 
   const phaseColor = dp ? palette[PHASE_COLOR[dp.phase].main] : palette.textSecondary;
@@ -310,17 +285,27 @@ export function DayPanel({ date, onRequestPrivacy }: Props) {
                 {meMeta.emoji} ¿Cómo estás?
               </ThemedText>
               <View style={styles.moodRow}>
-                {MOODS.map((m) => {
-                  const sel = myMood === m;
+                {MOOD_OPTIONS.map(({ emoji, label }) => {
+                  const sel = myMood === emoji;
                   return (
                     <Pressable
-                      key={m}
-                      onPress={() => patchEntry({ [meMeta.moodKey]: sel ? undefined : m })}
+                      key={emoji}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Estado: ${label}`}
+                      accessibilityState={{ selected: sel }}
+                      onPress={() =>
+                        patchEntry({ [meMeta.moodKey]: sel ? undefined : emoji })
+                      }
                       style={[
                         styles.moodBtn,
                         { backgroundColor: sel ? palette.tint : palette.background },
                       ]}>
-                      <Text style={{ fontSize: 20 }}>{m}</Text>
+                      <Text style={styles.moodEmoji}>{emoji}</Text>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.moodLabel, { color: sel ? '#fff' : palette.textSecondary }]}>
+                        {label}
+                      </Text>
                     </Pressable>
                   );
                 })}
@@ -418,18 +403,14 @@ export function DayPanel({ date, onRequestPrivacy }: Props) {
 
               <View style={styles.autoHead}>
                 <ThemedText type="small" style={[styles.sub, { color: palette.textSecondary }]}>
-                  {aiApiKey.trim() ? '🤖 Resumen de la IA' : '✨ Resumen automático'}
+                  ✨ Resumen automático local
                 </ThemedText>
                 {memories.length > 0 && (
                   <Pressable
                     onPress={generateSummary}
-                    disabled={aiBusy}
-                    style={[
-                      styles.genBtn,
-                      { backgroundColor: aiBusy ? palette.backgroundSelected : palette.tint },
-                    ]}>
-                    <Text style={[styles.genBtnTxt, aiBusy && { color: palette.textSecondary }]}>
-                      {aiBusy ? '⏳ Generando…' : myAuto ? '↻ Actualizar' : '✨ Generar'}
+                    style={[styles.genBtn, { backgroundColor: palette.tint }]}>
+                    <Text style={styles.genBtnTxt}>
+                      {myAuto ? '↻ Actualizar' : '✨ Generar'}
                     </Text>
                   </Pressable>
                 )}
@@ -441,15 +422,13 @@ export function DayPanel({ date, onRequestPrivacy }: Props) {
               ) : (
                 <ThemedText type="small" style={{ color: palette.textSecondary }}>
                   {memories.length
-                    ? aiApiKey.trim()
-                      ? 'Pulsa Generar y la IA lo redactará con tus días equivalentes.'
-                      : 'Pulsa Generar (estadístico). Con una clave de IA en Ajustes, lo redacta un chatbot.'
+                    ? 'Pulsa Generar: se calcula en tu dispositivo con tus días equivalentes.'
                     : 'Sin días equivalentes registrados todavía.'}
                 </ThemedText>
               )}
-              {aiNote ? (
+              {summaryNote ? (
                 <ThemedText type="small" style={{ color: palette.period }}>
-                  {aiNote}
+                  {summaryNote}
                 </ThemedText>
               ) : null}
 
@@ -593,12 +572,16 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999 },
   moodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   moodBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 999,
+    width: 68,
+    minHeight: 58,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 5,
   },
+  moodEmoji: { fontSize: 21 },
+  moodLabel: { fontSize: 9, fontWeight: '600', marginTop: 1 },
   wellRow: {
     flexDirection: 'row',
     alignItems: 'center',

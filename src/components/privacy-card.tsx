@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { SyncCard } from '@/components/sync-card';
 import { Spacing } from '@/constants/theme';
 import { usePalette } from '@/hooks/use-palette';
-import { buildDemoData } from '@/lib/demo';
 import { useApp } from '@/lib/store';
 import { PERSON_META, PRIVACY_MODES } from '@/lib/types';
+import { useCloud } from '@/providers/cloud-provider';
 
 interface Props {
   open: boolean;
@@ -25,13 +25,11 @@ interface Props {
  */
 export function PrivacyCard({ open, onToggleOpen, hint, onClearHint }: Props) {
   const palette = usePalette();
+  const cloud = useCloud();
   const me = useApp((s) => s.settings.perspective);
   const privacy = useApp((s) => s.settings.privacy);
   const matchRadius = useApp((s) => s.settings.matchRadius);
-  const aiApiKey = useApp((s) => s.settings.aiApiKey);
   const updateSettings = useApp((s) => s.updateSettings);
-  const replaceData = useApp((s) => s.replaceData);
-  const [confirmDemo, setConfirmDemo] = useState(false);
 
   const meMeta = PERSON_META[me];
   const mode = privacy[me];
@@ -124,56 +122,26 @@ export function PrivacyCard({ open, onToggleOpen, hint, onClearHint }: Props) {
             fases nunca se mezclan.
           </ThemedText>
 
-          <ThemedText style={styles.subhead}>🤖 Resumen con IA (opcional)</ThemedText>
-          <TextInput
-            value={aiApiKey}
-            onChangeText={(t) => updateSettings({ aiApiKey: t })}
-            placeholder="Clave de API de Anthropic (sk-ant-…)"
-            placeholderTextColor={palette.textSecondary}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            style={[styles.keyInput, { backgroundColor: palette.background, color: palette.text }]}
-          />
+          <ThemedText style={styles.subhead}>✨ Resumen automático</ThemedText>
           <ThemedText type="small" style={{ color: palette.textSecondary }}>
-            Con clave, el botón «Generar» del resumen llama a un chatbot (Claude) para
-            redactarlo — cuesta una fracción de céntimo por resumen y solo se usa al
-            pulsarlo. La clave se guarda únicamente en este dispositivo. Sin clave, se
-            usa el resumen estadístico local (gratis).
+            Se genera en este dispositivo a partir de tus días equivalentes: es gratuito
+            y no envía tus registros a ningún proveedor. La redacción opcional con
+            ChatGPT queda reservada para una versión posterior con control de costes.
           </ThemedText>
 
-          <Pressable
-            onPress={() => updateSettings({ roleChosen: false })}
-            hitSlop={8}
-            style={styles.switchUser}>
-            <ThemedText type="small" style={{ color: palette.tint, fontWeight: '700' }}>
-              👤 Cambiar de usuario
-            </ThemedText>
-          </Pressable>
+          <SyncCard />
 
-          <Pressable
-            onPress={() => {
-              if (!confirmDemo) {
-                setConfirmDemo(true);
-                return;
-              }
-              const demo = buildDemoData();
-              replaceData(demo.entries, demo.cycleNotes);
-              setConfirmDemo(false);
-            }}
-            hitSlop={8}
-            style={styles.switchUser}>
-            <ThemedText
-              type="small"
-              style={{
-                color: confirmDemo ? palette.period : palette.tint,
-                fontWeight: '700',
-              }}>
-              {confirmDemo
-                ? '⚠️ Sustituye TODOS los datos actuales — toca otra vez para confirmar'
-                : '🧪 Rellenar con 6 meses de datos de ejemplo'}
-            </ThemedText>
-          </Pressable>
+          {!cloud.membership ? (
+            <Pressable
+              onPress={() => updateSettings({ roleChosen: false })}
+              hitSlop={8}
+              style={styles.switchUser}>
+              <ThemedText type="small" style={{ color: palette.tint, fontWeight: '700' }}>
+                👤 Cambiar de usuario
+              </ThemedText>
+            </Pressable>
+          ) : null}
+
         </>
       )}
     </ThemedView>
@@ -212,12 +180,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: Spacing.two,
     alignItems: 'center',
-  },
-  keyInput: {
-    borderRadius: 10,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    fontSize: 14,
   },
   switchUser: { marginTop: Spacing.one },
 });

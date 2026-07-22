@@ -5,8 +5,29 @@ export type Flow = 0 | 1 | 2 | 3;
 
 export const FLOW_LABELS = ['Nada', 'Ligero', 'Medio', 'Fuerte'] as const;
 
-/** Emojis de estado emocional disponibles en el diario. */
-export const MOODS = ['🥰', '😊', '😐', '😴', '🤕', '😢', '😡', '🤯'] as const;
+/**
+ * Estados emocionales disponibles en el diario. Las etiquetas evitan que el
+ * significado dependa solo de interpretar un emoji y sirven como texto
+ * accesible. Los emojis antiguos se mantienen para no romper datos guardados.
+ */
+export const MOOD_OPTIONS = [
+  { emoji: '🥰', label: 'Cariño' },
+  { emoji: '😊', label: 'Bien' },
+  { emoji: '😌', label: 'Calma' },
+  { emoji: '🙂', label: 'Ánimo' },
+  { emoji: '😐', label: 'Neutral' },
+  { emoji: '😕', label: 'Revuelta' },
+  { emoji: '😴', label: 'Cansancio' },
+  { emoji: '🤕', label: 'Dolor' },
+  { emoji: '🥺', label: 'Sensible' },
+  { emoji: '😢', label: 'Tristeza' },
+  { emoji: '😤', label: 'Irritación' },
+  { emoji: '😡', label: 'Enfado' },
+  { emoji: '😰', label: 'Agobio' },
+  { emoji: '🤯', label: 'Saturación' },
+] as const;
+
+export const MOODS = MOOD_OPTIONS.map(({ emoji }) => emoji);
 
 /**
  * Los dos roles de la pareja. OJO: 'her'/'him' son CLAVES DE ALMACENAMIENTO
@@ -132,11 +153,6 @@ export interface Settings {
    * tiene su propio tope (la regla es más rígida) y NUNCA se cruzan fases.
    */
   matchRadius: number;
-  /**
-   * Clave de API de Anthropic del usuario para el resumen con IA. Vive SOLO
-   * en este dispositivo (AsyncStorage); si está vacía se usa la estadística.
-   */
-  aiApiKey: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -144,7 +160,6 @@ export const DEFAULT_SETTINGS: Settings = {
   onboarded: false,
   perspective: 'her',
   roleChosen: false,
-  privacy: { her: 'manual', him: 'manual' },
+  privacy: { her: 'public', him: 'public' },
   matchRadius: 2,
-  aiApiKey: '',
 };

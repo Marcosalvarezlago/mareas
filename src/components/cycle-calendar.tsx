@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PhaseInfoSheet } from '@/components/phase-info-sheet';
@@ -35,11 +35,6 @@ export function CycleCalendar({ selectedDate, onSelect }: Props) {
     y: Number(selectedDate.slice(0, 4)),
     m: Number(selectedDate.slice(5, 7)) - 1,
   }));
-
-  // Si el día seleccionado salta a otro mes, el calendario lo sigue.
-  useEffect(() => {
-    setView({ y: Number(selectedDate.slice(0, 4)), m: Number(selectedDate.slice(5, 7)) - 1 });
-  }, [selectedDate]);
 
   const shift = (delta: number) =>
     setView(({ y, m }) => {

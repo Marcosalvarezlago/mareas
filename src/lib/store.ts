@@ -15,7 +15,7 @@ import {
   type Settings,
 } from './types';
 
-interface AppState {
+export interface AppSnapshot {
   entries: Record<ISODate, DayEntry>;
   /**
    * Resúmenes por PUNTO del ciclo. Clave = coordenada fase-consciente
@@ -24,19 +24,24 @@ interface AppState {
    */
   cycleNotes: Record<string, CycleDayNote>;
   settings: Settings;
+}
+
+interface AppState extends AppSnapshot {
   updateDay: (date: ISODate, patch: Partial<Omit<DayEntry, 'date'>>) => void;
   updateCycleNote: (coordKey: string, patch: Partial<CycleDayNote>) => void;
   updateSettings: (patch: Partial<Settings>) => void;
-  /** Sustituye diario y resúmenes de golpe (datos de ejemplo, import futuro). */
-  replaceData: (
-    entries: Record<ISODate, DayEntry>,
-    cycleNotes: Record<string, CycleDayNote>,
-  ) => void;
   clearAll: () => void;
 }
 
-/** Migra formatos antiguos guardados: claves numéricas y privacidad booleana. */
-function migrate(p: Partial<AppState>): Partial<AppState> {
+/** Migra formatos antiguos y aplica el corte limpio previo a la prueba real. */
+function migrate(p: Partial<AppState>, persistedVersion = 0): Partial<AppState> {
+  if (p.settings && 'aiApiKey' in p.settings) {
+    // Versiones anteriores guardaban una clave de Anthropic en el navegador.
+    // La integración cliente se retiró: eliminamos también el secreto legado.
+    const settings = { ...p.settings } as Partial<Settings> & { aiApiKey?: string };
+    delete settings.aiApiKey;
+    p = { ...p, settings: settings as Settings };
+  }
   if (p.cycleNotes) {
     const notes: Record<string, CycleDayNote> = {};
     for (const [k, v] of Object.entries(p.cycleNotes)) {
@@ -50,6 +55,18 @@ function migrate(p: Partial<AppState>): Partial<AppState> {
       if (typeof priv[person] !== 'string') priv[person] = 'manual';
     }
     p = { ...p, settings: { ...p.settings, privacy: priv as Record<'her' | 'him', PrivacyMode> } };
+  }
+  if (persistedVersion < 3) {
+    p = {
+      ...p,
+      entries: {},
+      cycleNotes: {},
+      settings: {
+        ...DEFAULT_SETTINGS,
+        ...(p.settings ?? {}),
+        privacy: { her: 'public', him: 'public' },
+      },
+    };
   }
   return p;
 }
@@ -80,16 +97,17 @@ export const useApp = create<AppState>()(
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
 
-      replaceData: (entries, cycleNotes) => set({ entries, cycleNotes }),
-
       clearAll: () =>
         set({ entries: {}, cycleNotes: {}, settings: { ...DEFAULT_SETTINGS } }),
     }),
     {
       name: 'mareas-v1',
+      version: 3,
       storage: createJSONStorage(() => AsyncStorage),
+      migrate: (persisted, version) =>
+        migrate((persisted ?? {}) as Partial<AppState>, version) as AppState,
       merge: (persisted, current) => {
-        const p = migrate((persisted ?? {}) as Partial<AppState>);
+        const p = migrate((persisted ?? {}) as Partial<AppState>, 3);
         return {
           ...current,
           ...p,
