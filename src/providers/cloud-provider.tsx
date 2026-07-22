@@ -67,6 +67,7 @@ function hasLocalDataForRole(current: AppSnapshot, role: Person): boolean {
   const hasEntry = Object.values(current.entries).some((entry) =>
     role === 'her'
       ? entry.flow !== undefined ||
+        entry.painHer !== undefined ||
         entry.moodHer !== undefined ||
         entry.noteHer !== undefined ||
         entry.goodHer !== undefined ||

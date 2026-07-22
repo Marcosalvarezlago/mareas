@@ -7,6 +7,7 @@ import {
   type DayEntry,
   type Flow,
   type Person,
+  type PainLevel,
   type PrivacyMode,
   type Settings,
 } from './types';
@@ -46,6 +47,7 @@ function ownEntry(entry: DayEntry, role: Person): DayEntry {
   if (role === 'her') {
     return {
       date: entry.date,
+      painHer: cleanPain(entry.painHer),
       moodHer: cleanText(entry.moodHer, 32),
       noteHer: cleanText(entry.noteHer, 4000),
       noteHerShared: entry.noteHerShared,
@@ -68,6 +70,7 @@ function sharedEntry(entry: DayEntry, role: Person, mode: PrivacyMode): DayEntry
     const noteShared = effectiveShared(mode, entry.noteHerShared);
     return {
       date: entry.date,
+      painHer: cleanPain(entry.painHer),
       moodHer: cleanText(entry.moodHer, 32),
       goodHer: cleanText(entry.goodHer, 1000),
       badHer: cleanText(entry.badHer, 1000),
@@ -203,6 +206,10 @@ function cleanFlow(value: unknown): Flow | undefined {
   return value === 0 || value === 1 || value === 2 || value === 3 ? value : undefined;
 }
 
+function cleanPain(value: unknown): PainLevel | undefined {
+  return value === 0 || value === 1 || value === 2 || value === 3 ? value : undefined;
+}
+
 function validDate(value: string): value is ISODate {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
@@ -219,6 +226,7 @@ function cleanEntries(value: unknown, role: Person, includeFlow = false): Record
     const entry: DayEntry = { date };
     if (includeFlow) entry.flow = cleanFlow(item.flow);
     if (role === 'her') {
+      entry.painHer = cleanPain(item.painHer);
       entry.moodHer = cleanText(item.moodHer, 32);
       entry.noteHer = cleanText(item.noteHer, 4000);
       entry.noteHerShared = cleanBool(item.noteHerShared);

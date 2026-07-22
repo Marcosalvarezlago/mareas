@@ -18,7 +18,15 @@ import { usePalette } from '@/hooks/use-palette';
 import { cycleDayOf } from '@/lib/cycle';
 import { formatLong, type ISODate } from '@/lib/dates';
 import { useApp } from '@/lib/store';
-import { FLOW_LABELS, MOOD_OPTIONS, type Flow } from '@/lib/types';
+import {
+  FLOW_LABELS,
+  MOOD_OPTIONS,
+  PAIN_LABELS,
+  moodSelected,
+  toggleMood,
+  type Flow,
+  type PainLevel,
+} from '@/lib/types';
 
 interface Props {
   date: ISODate | null;
@@ -37,14 +45,17 @@ export function DaySheet({ date, onClose }: Props) {
   const entry = entries[date];
   const cycleDay = cycleDayOf(date, starts);
 
-  const setFlow = (f: Flow) => updateDay(date, { flow: entry?.flow === f ? 0 : f });
+  const setFlow = (f: Flow) => {
+    const flow = entry?.flow === f ? 0 : f;
+    updateDay(date, { flow, ...(flow === 0 ? { painHer: undefined } : {}) });
+  };
   const setMood = (who: 'moodHer' | 'moodHim', m: string) =>
-    updateDay(date, { [who]: entry?.[who] === m ? undefined : m });
+    updateDay(date, { [who]: toggleMood(entry?.[who], m) });
 
   const moodRow = (who: 'moodHer' | 'moodHim') => (
     <View style={styles.moodRow}>
       {MOOD_OPTIONS.map(({ emoji, label }) => {
-        const selected = entry?.[who] === emoji;
+        const selected = moodSelected(entry?.[who], emoji);
         return (
           <Pressable
             key={emoji}
@@ -136,7 +147,31 @@ export function DaySheet({ date, onClose }: Props) {
                 })}
               </View>
 
-              <ThemedText style={styles.section}>🌸 Ella — ¿cómo está?</ThemedText>
+              {(entry?.flow ?? 0) > 0 ? (
+                <>
+                  <ThemedText style={styles.section}>🌡️ Dolor menstrual</ThemedText>
+                  <View style={styles.chipRow}>
+                    {PAIN_LABELS.map((label, i) => {
+                      const selected = (entry?.painHer ?? 0) === i;
+                      return (
+                        <Pressable
+                          key={label}
+                          onPress={() => updateDay(date, { painHer: i as PainLevel })}
+                          style={[
+                            styles.chip,
+                            { backgroundColor: selected ? palette.period : palette.backgroundElement },
+                          ]}>
+                          <Text style={{ color: selected ? '#fff' : palette.text, fontWeight: '600' }}>
+                            {label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </>
+              ) : null}
+
+              <ThemedText style={styles.section}>🌸 Ella — ¿cómo está? · varios posibles</ThemedText>
               {moodRow('moodHer')}
               {noteInput('noteHer', 'Nota de ella…')}
 

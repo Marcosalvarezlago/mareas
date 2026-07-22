@@ -8,7 +8,7 @@
 import type { ThemeColor } from '@/constants/theme';
 
 import { addDays, diffDays, formatShort, isBetween, type ISODate } from './dates';
-import { PERSON_META, type DayEntry, type Person } from './types';
+import { MOODS, PERSON_META, type DayEntry, type Person } from './types';
 
 /** Un día con sangrado separado >3 días del anterior inicia un ciclo nuevo. */
 const NEW_PERIOD_GAP = 3;
@@ -514,7 +514,11 @@ function moodPairs(matches: SimilarDay[], key: 'moodHer' | 'moodHim') {
   const counts = new Map<string, number>();
   for (const m of matches) {
     const mood = m.entry[key];
-    if (mood) counts.set(mood, (counts.get(mood) ?? 0) + 1);
+    if (!mood) continue;
+    const known = MOODS.filter((emoji) => mood.includes(emoji));
+    for (const emoji of known.length ? known : [mood]) {
+      counts.set(emoji, (counts.get(emoji) ?? 0) + 1);
+    }
   }
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
