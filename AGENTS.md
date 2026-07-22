@@ -41,6 +41,12 @@
   debe recibir campos no compartidos; `cycle_snapshots` solo lo escribe `her`.
   Si faltan variables `EXPO_PUBLIC_SUPABASE_*`, la app debe seguir local y sin
   errores. Nunca usar una secret/service-role key en Expo.
+- Desde la prueba real iniciada el 22-07-2026 no existen datos demo ni altas
+  abiertas: sólo acceden las dos cuentas existentes. La migración
+  `20260722120000_start_real_memory.sql` limpia las instantáneas de prueba una
+  única vez y `snapshot_history` conserva las revisiones anteriores. No borrar,
+  truncar ni reescribir datos reales o su historial en cambios futuros; usar
+  migraciones compatibles y preparar una vía de recuperación.
 - Resumen automático: exclusivamente estadístico y local mediante
   `summarizeCyclePoint`. Anthropic fue retirado. La futura redacción con
   ChatGPT solo podrá vivir en una función de servidor, con límite de coste,

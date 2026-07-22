@@ -390,7 +390,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     setNotice(null);
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: authRedirectUrl() },
+      options: { emailRedirectTo: authRedirectUrl(), shouldCreateUser: false },
     });
     if (error) {
       setStatus('error');

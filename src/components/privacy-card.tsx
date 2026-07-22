@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -6,7 +5,6 @@ import { ThemedView } from '@/components/themed-view';
 import { SyncCard } from '@/components/sync-card';
 import { Spacing } from '@/constants/theme';
 import { usePalette } from '@/hooks/use-palette';
-import { buildDemoData } from '@/lib/demo';
 import { useApp } from '@/lib/store';
 import { PERSON_META, PRIVACY_MODES } from '@/lib/types';
 import { useCloud } from '@/providers/cloud-provider';
@@ -32,8 +30,6 @@ export function PrivacyCard({ open, onToggleOpen, hint, onClearHint }: Props) {
   const privacy = useApp((s) => s.settings.privacy);
   const matchRadius = useApp((s) => s.settings.matchRadius);
   const updateSettings = useApp((s) => s.updateSettings);
-  const replaceData = useApp((s) => s.replaceData);
-  const [confirmDemo, setConfirmDemo] = useState(false);
 
   const meMeta = PERSON_META[me];
   const mode = privacy[me];
@@ -146,29 +142,6 @@ export function PrivacyCard({ open, onToggleOpen, hint, onClearHint }: Props) {
             </Pressable>
           ) : null}
 
-          <Pressable
-            onPress={() => {
-              if (!confirmDemo) {
-                setConfirmDemo(true);
-                return;
-              }
-              const demo = buildDemoData();
-              replaceData(demo.entries, demo.cycleNotes);
-              setConfirmDemo(false);
-            }}
-            hitSlop={8}
-            style={styles.switchUser}>
-            <ThemedText
-              type="small"
-              style={{
-                color: confirmDemo ? palette.period : palette.tint,
-                fontWeight: '700',
-              }}>
-              {confirmDemo
-                ? '⚠️ Sustituye TODOS los datos actuales — toca otra vez para confirmar'
-                : '🧪 Rellenar con 6 meses de datos de ejemplo'}
-            </ThemedText>
-          </Pressable>
         </>
       )}
     </ThemedView>

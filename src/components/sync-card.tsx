@@ -42,8 +42,8 @@ export function SyncCard() {
       ) : !cloud.email ? (
         <>
           <ThemedText type="small" style={{ color: palette.textSecondary }}>
-            Introduce tu correo. Recibirás un enlace de acceso sin contraseña; al volver,
-            tus datos se recuperarán incluso desde incógnito u otro dispositivo.
+            Acceso reservado a vuestras dos cuentas existentes. Introduce tu correo para
+            recibir un enlace seguro; no se crearán usuarios nuevos.
           </ThemedText>
           <TextInput
             value={email}

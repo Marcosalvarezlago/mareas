@@ -41,7 +41,8 @@ y, al cerrarse, lo destruye; por eso no puede recuperar datos automáticamente.
 
 La sincronización opcional usa Supabase:
 
-1. acceso mediante enlace mágico por correo, sin contraseña;
+1. acceso mediante enlace mágico por correo, sin contraseña y restringido a
+   las dos cuentas existentes;
 2. espacio de pareja con un código aleatorio cuyo servidor guarda solo el hash;
 3. copia privada separada para cada persona;
 4. proyección compartida que contiene únicamente campos autorizados;
@@ -62,6 +63,10 @@ El diseño completo y sus límites están en
 5. En GitHub crear los secretos de Actions
    `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 6. Exponerlos al paso `Export web app` del workflow antes del despliegue.
+
+Las instantáneas activas se sincronizan entre dispositivos. Cada versión
+reemplazada queda además archivada en `snapshot_history`, protegida por RLS,
+para poder recuperar la memoria si una modificación futura introduce un error.
 
 La clave publicable no es un secreto y está diseñada para cliente; nunca debe
 usarse la clave secreta o `service_role` en Expo. La protección depende de que

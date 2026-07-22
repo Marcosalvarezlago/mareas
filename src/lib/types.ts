@@ -160,6 +160,6 @@ export const DEFAULT_SETTINGS: Settings = {
   onboarded: false,
   perspective: 'her',
   roleChosen: false,
-  privacy: { her: 'manual', him: 'manual' },
+  privacy: { her: 'public', him: 'public' },
   matchRadius: 2,
 };

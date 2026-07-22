@@ -30,16 +30,11 @@ interface AppState extends AppSnapshot {
   updateDay: (date: ISODate, patch: Partial<Omit<DayEntry, 'date'>>) => void;
   updateCycleNote: (coordKey: string, patch: Partial<CycleDayNote>) => void;
   updateSettings: (patch: Partial<Settings>) => void;
-  /** Sustituye diario y resúmenes de golpe (datos de ejemplo, import futuro). */
-  replaceData: (
-    entries: Record<ISODate, DayEntry>,
-    cycleNotes: Record<string, CycleDayNote>,
-  ) => void;
   clearAll: () => void;
 }
 
-/** Migra formatos antiguos guardados: claves numéricas y privacidad booleana. */
-function migrate(p: Partial<AppState>): Partial<AppState> {
+/** Migra formatos antiguos y aplica el corte limpio previo a la prueba real. */
+function migrate(p: Partial<AppState>, persistedVersion = 0): Partial<AppState> {
   if (p.settings && 'aiApiKey' in p.settings) {
     // Versiones anteriores guardaban una clave de Anthropic en el navegador.
     // La integración cliente se retiró: eliminamos también el secreto legado.
@@ -60,6 +55,18 @@ function migrate(p: Partial<AppState>): Partial<AppState> {
       if (typeof priv[person] !== 'string') priv[person] = 'manual';
     }
     p = { ...p, settings: { ...p.settings, privacy: priv as Record<'her' | 'him', PrivacyMode> } };
+  }
+  if (persistedVersion < 3) {
+    p = {
+      ...p,
+      entries: {},
+      cycleNotes: {},
+      settings: {
+        ...DEFAULT_SETTINGS,
+        ...(p.settings ?? {}),
+        privacy: { her: 'public', him: 'public' },
+      },
+    };
   }
   return p;
 }
@@ -90,18 +97,17 @@ export const useApp = create<AppState>()(
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
 
-      replaceData: (entries, cycleNotes) => set({ entries, cycleNotes }),
-
       clearAll: () =>
         set({ entries: {}, cycleNotes: {}, settings: { ...DEFAULT_SETTINGS } }),
     }),
     {
       name: 'mareas-v1',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => AsyncStorage),
-      migrate: (persisted) => migrate((persisted ?? {}) as Partial<AppState>) as AppState,
+      migrate: (persisted, version) =>
+        migrate((persisted ?? {}) as Partial<AppState>, version) as AppState,
       merge: (persisted, current) => {
-        const p = migrate((persisted ?? {}) as Partial<AppState>);
+        const p = migrate((persisted ?? {}) as Partial<AppState>, 3);
         return {
           ...current,
           ...p,
